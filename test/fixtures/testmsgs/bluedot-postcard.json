@@ -1,0 +1,39 @@
+{
+   "Msg" : {
+      "Boundary" : "----------=_961872013-1436-0",
+      "Encoding" : "binary",
+      "Subject" : "A postcard for you",
+      "To" : "noone",
+      "Type" : "multipart/alternative"
+   },
+   "Parser" : {
+      "ExtractNested" : 1,
+      "Message" : "testmsgs/bluedot-postcard.msg",
+      "Name" : "anonymous",
+      "OutputToCore" : "0"
+   },
+   "Part_1" : {
+      "Disposition" : "inline",
+      "Encoding" : "binary",
+      "Size" : 88,
+      "Type" : "text/plain"
+   },
+   "Part_2" : {
+      "Boundary" : "----------=_961872013-1436-1",
+      "Encoding" : "binary",
+      "Type" : "multipart/related"
+   },
+   "Part_2_1" : {
+      "Disposition" : "inline",
+      "Encoding" : "binary",
+      "Size" : 123,
+      "Type" : "text/html"
+   },
+   "Part_2_2" : {
+      "Disposition" : "inline",
+      "Encoding" : "base64",
+      "Filename" : "bluedot.jpg",
+      "Size" : 4272,
+      "Type" : "image/jpeg"
+   }
+}

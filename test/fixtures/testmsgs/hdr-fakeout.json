@@ -1,0 +1,11 @@
+{
+   "Msg" : {
+      "Fail" : 1
+   },
+   "Parser" : {
+      "ExtractNested" : 1,
+      "Message" : "testmsgs/hdr-fakeout.msg",
+      "Name" : "anonymous",
+      "OutputToCore" : "0"
+   }
+}

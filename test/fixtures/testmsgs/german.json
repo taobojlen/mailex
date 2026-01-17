@@ -1,0 +1,16 @@
+{
+   "Msg" : {
+      "Charset" : "iso-8859-1",
+      "Encoding" : "quoted-printable",
+      "From" : "deuschle@mnh.telekom.de (Guenter Deuschle)",
+      "Subject" : "Re: 34Mbit/s Netz",
+      "To" : "Juergen Specht <specht@kulturbox.de>",
+      "Type" : "text/plain"
+   },
+   "Parser" : {
+      "ExtractNested" : 1,
+      "Message" : "testmsgs/german.msg",
+      "Name" : "anonymous",
+      "OutputToCore" : "0"
+   }
+}

@@ -1,0 +1,43 @@
+{
+   "Msg" : {
+      "Boundary" : "-490585488-806670346-834061839=:2195",
+      "Encoding" : "7bit",
+      "From" : "Starovoitov Igor <igor@fripp.aic.synapse.ru>",
+      "Subject" : "Need help",
+      "To" : "eryq@rhine.gsfc.nasa.gov",
+      "Type" : "multipart/mixed"
+   },
+   "Parser" : {
+      "ExtractNested" : 1,
+      "Message" : "testmsgs/multi-igor.msg",
+      "Name" : "anonymous",
+      "OutputToCore" : "0"
+   },
+   "Part_1" : {
+      "Charset" : "US-ASCII",
+      "Encoding" : "7bit",
+      "Size" : 293,
+      "Type" : "text/plain"
+   },
+   "Part_2" : {
+      "Charset" : "US-ASCII",
+      "Encoding" : "base64",
+      "Filename" : "Makefile",
+      "Size" : 2442,
+      "Type" : "text/plain"
+   },
+   "Part_3" : {
+      "Charset" : "US-ASCII",
+      "Encoding" : "base64",
+      "Filename" : "multi-nested.msg",
+      "Size" : 3272,
+      "Type" : "text/plain"
+   },
+   "Part_4" : {
+      "Charset" : "US-ASCII",
+      "Encoding" : "base64",
+      "Filename" : "Parser.n.out",
+      "Size" : 906,
+      "Type" : "text/plain"
+   }
+}

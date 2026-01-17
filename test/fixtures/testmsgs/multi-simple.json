@@ -1,0 +1,27 @@
+{
+   "Msg" : {
+      "Boundary" : "simple boundary",
+      "Encoding" : "7bit",
+      "From" : "Nathaniel Borenstein <nsb@bellcore.com>",
+      "Subject" : "Sample message",
+      "To" : " Ned Freed <ned@innosoft.com>",
+      "Type" : "multipart/mixed"
+   },
+   "Parser" : {
+      "ExtractNested" : 1,
+      "Message" : "testmsgs/multi-simple.msg",
+      "Name" : "anonymous",
+      "OutputToCore" : "0"
+   },
+   "Part_1" : {
+      "Encoding" : "7bit",
+      "Size" : 76,
+      "Type" : "text/plain"
+   },
+   "Part_2" : {
+      "Charset" : "us-ascii",
+      "Encoding" : "7bit",
+      "Size" : 73,
+      "Type" : "text/plain"
+   }
+}

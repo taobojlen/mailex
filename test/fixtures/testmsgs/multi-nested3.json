@@ -1,0 +1,68 @@
+{
+   "Msg" : {
+      "Boundary" : "unique-boundary-1",
+      "Encoding" : "7bit",
+      "From" : "Lord John Whorfin <whorfin@yoyodyne.com>",
+      "Subject" : "A complex nested multipart example",
+      "To" : "<john-yaya@yoyodyne.com>",
+      "Type" : "multipart/mixed"
+   },
+   "Parser" : {
+      "ExtractNested" : 1,
+      "Message" : "testmsgs/multi-nested3.msg",
+      "Name" : "anonymous",
+      "OutputToCore" : "0"
+   },
+   "Part_1" : {
+      "Encoding" : "7bit",
+      "Size" : 208,
+      "Type" : "text/plain"
+   },
+   "Part_2" : {
+      "Charset" : "US-ASCII",
+      "Encoding" : "7bit",
+      "Size" : 140,
+      "Type" : "text/plain"
+   },
+   "Part_3" : {
+      "Boundary" : "unique-boundary-2",
+      "Encoding" : "7bit",
+      "Subject" : "Part 3 of the outer message is multipart!",
+      "Type" : "multipart/parallel"
+   },
+   "Part_3_1" : {
+      "Disposition" : "inline",
+      "Encoding" : "base64",
+      "Filename" : "3d-vise.gif",
+      "Size" : 419,
+      "Subject" : "Part 1 of the inner message is a GIF, \"3d-vise.gif\"",
+      "Type" : "image/gif"
+   },
+   "Part_3_2" : {
+      "Disposition" : "inline",
+      "Encoding" : "base64",
+      "Filename" : "3d-eye.gif",
+      "Size" : 357,
+      "Subject" : "Part 2 of the inner message is another GIF, \"3d-eye.gif\"",
+      "Type" : "image/gif"
+   },
+   "Part_4" : {
+      "Encoding" : "7bit",
+      "Size" : 148,
+      "Type" : "text/richtext"
+   },
+   "Part_5" : {
+      "Encoding" : "7bit",
+      "Filename" : "nice.name",
+      "Type" : "message/rfc822"
+   },
+   "Part_5_1" : {
+      "Charset" : "ISO-8859-1",
+      "Encoding" : "quoted-printable",
+      "From" : "(mailbox in US-ASCII)",
+      "Size" : 57,
+      "Subject" : "Part 5 of the outer message is itself an RFC822 message!",
+      "To" : "(address in US-ASCII)",
+      "Type" : "text/plain"
+   }
+}

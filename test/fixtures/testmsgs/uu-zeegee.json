@@ -1,0 +1,34 @@
+{
+   "Msg" : {
+      "Encoding" : "7bit",
+      "From" : "me",
+      "Subject" : "uudecoding",
+      "To" : "you",
+      "Type" : "multipart/mixed"
+   },
+   "Parser" : {
+      "ExtractNested" : 1,
+      "ExtractUuencode" : 1,
+      "Message" : "testmsgs/uu-zeegee.msg",
+      "Name" : "anonymous",
+      "OutputToCore" : "0"
+   },
+   "Part_1" : {
+      "Encoding" : "7bit",
+      "Type" : "text/plain"
+   },
+   "Part_2" : {
+      "Disposition" : "inline",
+      "Encoding" : "base64",
+      "Filename" : "up.gif",
+      "Size" : 110,
+      "Type" : "image/gif"
+   },
+   "Part_3" : {
+      "Disposition" : "inline",
+      "Encoding" : "base64",
+      "Filename" : "zeegee.gif",
+      "Size" : 4834,
+      "Type" : "image/gif"
+   }
+}

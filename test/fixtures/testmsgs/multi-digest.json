@@ -1,0 +1,39 @@
+{
+   "Msg" : {
+      "Boundary" : "simple boundary",
+      "Encoding" : "7bit",
+      "From" : "Nathaniel Borenstein <nsb@bellcore.com>",
+      "Subject" : "Sample digest message",
+      "To" : " Ned Freed <ned@innosoft.com>",
+      "Type" : "multipart/digest"
+   },
+   "Parser" : {
+      "ExtractNested" : 1,
+      "Message" : "testmsgs/multi-digest.msg",
+      "Name" : "anonymous",
+      "OutputToCore" : "0"
+   },
+   "Part_1" : {
+      "Encoding" : "7bit",
+      "Type" : "message/rfc822"
+   },
+   "Part_1_1" : {
+      "Encoding" : "7bit",
+      "From" : "noone@nowhere.org",
+      "Size" : 70,
+      "Subject" : "embedded message 1",
+      "Type" : "text/plain"
+   },
+   "Part_2" : {
+      "Charset" : "us-ascii",
+      "Encoding" : "7bit",
+      "Type" : "message/rfc822"
+   },
+   "Part_2_1" : {
+      "Encoding" : "7bit",
+      "From" : "noone@nowhere.org",
+      "Size" : 73,
+      "Subject" : "embedded message 2",
+      "Type" : "text"
+   }
+}

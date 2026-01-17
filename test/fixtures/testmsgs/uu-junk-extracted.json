@@ -1,0 +1,45 @@
+{
+   "Msg" : {
+      "Boundary" : "---------------------------7d033e3733c",
+      "Encoding" : "7bit",
+      "From" : "\"ADJE Webmail Tech Support\" <support@webmail.uwohali.com>",
+      "Subject" : "mime::parser",
+      "To" : "eryq@zeegee.com",
+      "Type" : "multipart/mixed"
+   },
+   "Parser" : {
+      "ExtractNested" : 1,
+      "ExtractUuencode" : 1,
+      "Message" : "testmsgs/uu-junk.msg",
+      "Name" : "anonymous",
+      "OutputToCore" : "0"
+   },
+   "Part_1" : {
+      "Encoding" : "7bit",
+      "Size" : 373,
+      "Type" : "text/plain"
+   },
+   "Part_2" : {
+      "Encoding" : "7bit",
+      "Type" : "multipart/mixed"
+   },
+   "Part_2_1" : {
+      "Encoding" : "7bit",
+      "Size" : 93,
+      "Type" : "text/plain"
+   },
+   "Part_2_2" : {
+      "Disposition" : "inline",
+      "Encoding" : "base64",
+      "Filename" : "up.gif",
+      "Size" : 110,
+      "Type" : "image/gif"
+   },
+   "Part_2_3" : {
+      "Disposition" : "inline",
+      "Encoding" : "base64",
+      "Filename" : "zeegee.gif",
+      "Size" : 4834,
+      "Type" : "image/gif"
+   }
+}

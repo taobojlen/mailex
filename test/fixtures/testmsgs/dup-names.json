@@ -1,0 +1,45 @@
+{
+   "Parser" : {
+      "ExtractNested" : 1,
+      "Message" : "testmsgs/dup-names.msg",
+      "Name" : "anonymous",
+      "OutputToCore" : "0"
+   },
+   "Part_1" : {
+      "BodyFilename" : "one.gif",
+      "Disposition" : "inline",
+      "Encoding" : "base64",
+      "Filename" : "one.gif",
+      "Size" : 419,
+      "Type" : "image/gif"
+   },
+   "Part_2" : {
+      "BodyFilename" : "one-1.gif",
+      "Encoding" : "base64",
+      "Filename" : "one.gif",
+      "Size" : 357,
+      "Type" : "image/gif"
+   },
+   "Part_3" : {
+      "BodyFilename" : "two.nice.gif",
+      "Disposition" : "inline",
+      "Encoding" : "base64",
+      "Filename" : "two.nice.gif",
+      "Size" : 419,
+      "Type" : "image/gif"
+   },
+   "Part_4" : {
+      "BodyFilename" : "two-1.nice.gif",
+      "Encoding" : "base64",
+      "Filename" : "two.nice.gif",
+      "Size" : 357,
+      "Type" : "image/gif"
+   },
+   "Part_5" : {
+      "BodyFilename" : "two-2.nice.gif",
+      "Encoding" : "base64",
+      "Filename" : "two.nice.gif",
+      "Size" : 357,
+      "Type" : "image/gif"
+   }
+}

@@ -1,0 +1,35 @@
+{
+   "Msg" : {
+      "Boundary" : "------------299A70B339B65A93542D2AE",
+      "Encoding" : "7bit",
+      "From" : "Eryq <eryq@rhine.gsfc.nasa.gov>",
+      "Subject" : "Two images for you...",
+      "To" : "john-bigboote@eryq.pr.mcs.net",
+      "Type" : "multipart/mixed"
+   },
+   "Parser" : {
+      "ExtractNested" : 1,
+      "Message" : "testmsgs/multi-weirdspace.msg",
+      "Name" : "anonymous",
+      "OutputToCore" : "0"
+   },
+   "Part_1" : {
+      "Charset" : "us-ascii",
+      "Encoding" : "7bit",
+      "Size" : 420,
+      "Type" : "text/plain"
+   },
+   "Part_2" : {
+      "Disposition" : "inline",
+      "Encoding" : "base64",
+      "Filename" : "3d-compress.gif",
+      "Size" : 419,
+      "Type" : "image/gif"
+   },
+   "Part_3" : {
+      "Encoding" : "base64",
+      "Filename" : "3d-eye.gif",
+      "Size" : 357,
+      "Type" : "image/gif"
+   }
+}

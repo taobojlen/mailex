@@ -1,0 +1,12 @@
+{
+   "Msg" : {
+      "Filename" : "Список.doc",
+      "Subject" : "Greetings",
+      "Type" : "text/plain"
+   },
+   "Parser" : {
+      "Charset" : "KOI8-R",
+      "Message" : "testmsgs/russian.msg",
+      "OutputToCore" : "0"
+   }
+}

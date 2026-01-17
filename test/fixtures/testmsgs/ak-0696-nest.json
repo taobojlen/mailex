@@ -1,0 +1,34 @@
+{
+   "Msg" : {
+      "Boundary" : "------------70522FC73543",
+      "Encoding" : "7bit",
+      "From" : "Juergen Specht <specht@kulturbox.de>",
+      "Subject" : "[Fwd: Re: 34Mbit/s Netz]",
+      "To" : "andreas.koenig@mind.de, kun@pop.combox.de, 101762.2307@compuserve.com",
+      "Type" : "multipart/mixed"
+   },
+   "Parser" : {
+      "ExtractNested" : 1,
+      "Message" : "testmsgs/ak-0696.msg",
+      "Name" : "anonymous",
+      "OutputToCore" : "0"
+   },
+   "Part_1" : {
+      "Charset" : "us-ascii",
+      "Encoding" : "7bit",
+      "Type" : "text/plain"
+   },
+   "Part_2" : {
+      "Disposition" : "inline",
+      "Encoding" : "7bit",
+      "Type" : "message/rfc822"
+   },
+   "Part_2_1" : {
+      "Charset" : "iso-8859-1",
+      "Encoding" : "quoted-printable",
+      "From" : "deuschle@mnh.telekom.de (Guenter Deuschle)",
+      "Subject" : "Re: 34Mbit/s Netz",
+      "To" : "Juergen Specht <specht@kulturbox.de>",
+      "Type" : "text/plain"
+   }
+}

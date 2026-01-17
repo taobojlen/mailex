@@ -1,0 +1,39 @@
+{
+   "Msg" : {
+      "Boundary" : "------------299A70B339B65A93542D2AE",
+      "Encoding" : "7bit",
+      "Epilogue" : "That was a multi-part message in MIME format.\n",
+      "From" : "Eryq <eryq@rhine.gsfc.nasa.gov>",
+      "Preamble" : "This is a multi-part message in MIME format.\n",
+      "Subject" : "Two images for you...",
+      "To" : "john-bigboote@eryq.pr.mcs.net",
+      "Type" : "multipart/mixed"
+   },
+   "Parser" : {
+      "ExtractNested" : 1,
+      "Message" : "testmsgs/multi-2gifs.msg",
+      "Name" : "anonymous",
+      "OutputToCore" : "0"
+   },
+   "Part_1" : {
+      "Charset" : "us-ascii",
+      "Encoding" : "7bit",
+      "Size" : 417,
+      "Type" : "text/plain"
+   },
+   "Part_2" : {
+      "BodyFilename" : "3d-compress.gif",
+      "Disposition" : "inline",
+      "Encoding" : "base64",
+      "Filename" : "3d-compress.gif",
+      "Size" : 419,
+      "Type" : "image/gif"
+   },
+   "Part_3" : {
+      "BodyFilename" : "3d-eye.gif",
+      "Encoding" : "base64",
+      "Filename" : "3d-eye.gif",
+      "Size" : 357,
+      "Type" : "image/gif"
+   }
+}

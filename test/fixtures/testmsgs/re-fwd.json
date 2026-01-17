@@ -1,0 +1,33 @@
+{
+   "Msg" : {
+      "Disposition" : "inline",
+      "Encoding" : "binary",
+      "From" : "user2",
+      "Subject" : "Re: Fwd: hello world",
+      "To" : "user0",
+      "Type" : "message/rfc822"
+   },
+   "Parser" : {
+      "ExtractNested" : 1,
+      "Message" : "testmsgs/re-fwd.msg",
+      "Name" : "anonymous",
+      "OutputToCore" : "0"
+   },
+   "Part_1" : {
+      "Disposition" : "inline",
+      "Encoding" : "binary",
+      "From" : "user1",
+      "Subject" : "Fwd: hello world",
+      "To" : "user2",
+      "Type" : "message/rfc822"
+   },
+   "Part_1_1" : {
+      "Disposition" : "inline",
+      "Encoding" : "binary",
+      "From" : "user0",
+      "Size" : 60,
+      "Subject" : "hello world",
+      "To" : "user1",
+      "Type" : "text/plain"
+   }
+}

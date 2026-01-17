@@ -1,0 +1,15 @@
+{
+   "Msg" : {
+      "Disposition" : "inline",
+      "Encoding" : "base64",
+      "Filename" : "bluedot.jpg",
+      "Size" : 4272,
+      "Type" : "image/jpeg"
+   },
+   "Parser" : {
+      "ExtractNested" : 1,
+      "Message" : "testmsgs/bluedot-simple.msg",
+      "Name" : "anonymous",
+      "OutputToCore" : "0"
+   }
+}

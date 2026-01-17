@@ -1,0 +1,16 @@
+{
+   "Msg" : {
+      "Encoding" : "7bit",
+      "From" : "eryq@rhine.gsfc.nasa.gov",
+      "Size" : 443,
+      "Subject" : "Request for Leave",
+      "To" : "sitaram@selsvr.stx.com",
+      "Type" : "text/plain"
+   },
+   "Parser" : {
+      "ExtractNested" : 1,
+      "Message" : "testmsgs/simple.msg",
+      "Name" : "anonymous",
+      "OutputToCore" : "0"
+   }
+}

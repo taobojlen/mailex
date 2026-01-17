@@ -1,0 +1,36 @@
+{
+   "Msg" : {
+      "Boundary" : "------------299A70B339B65A93542D2AE",
+      "Encoding" : "7bit",
+      "From" : "Eryq <eryq@rhine.gsfc.nasa.gov>",
+      "Subject" : "Two images for you...",
+      "To" : "john-bigboote@eryq.pr.mcs.net",
+      "Type" : "multipart/mixed"
+   },
+   "Parser" : {
+      "ExtractNested" : 1,
+      "Message" : "testmsgs/multi-2evil.msg",
+      "Name" : "anonymous",
+      "OutputToCore" : "0"
+   },
+   "Part_1" : {
+      "Charset" : "us-ascii",
+      "Encoding" : "7bit",
+      "Size" : 417,
+      "Type" : "text/plain"
+   },
+   "Part_2" : {
+      "BodyFilename" : "because_ofpath3d-compress.gif",
+      "Disposition" : "inline",
+      "Encoding" : "base64",
+      "Filename" : "/evil/because:ofpath3d-compress.gif",
+      "Size" : 419,
+      "Type" : "image/gif"
+   },
+   "Part_3" : {
+      "BodyFilename" : "3d-eye-is-an-e.dat",
+      "Encoding" : "base64",
+      "Size" : 357,
+      "Type" : "image/gif"
+   }
+}
