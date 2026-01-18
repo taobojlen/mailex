@@ -227,7 +227,7 @@ Pending (depends on address parsing):
 
 ### 8.1 Root part resolution not implemented
 
-**Status:** Not Implemented
+**Status:** ✅ Implemented
 
 **Problem:** multipart/related messages have `start` and `type` parameters to identify the "root" part. Currently these are parsed as generic parameters but not interpreted. Clients cannot reliably determine which part is the main document vs related resources.
 
@@ -237,11 +237,14 @@ Pending (depends on address parsing):
 - RFC 2387 §3.2 — The Start Parameter (Content-ID of root)
 
 **Implementation:**
-When `content-type` is `multipart/related`:
-- Parse `start` parameter (a Content-ID reference)
-- Parse `type` parameter (expected MIME type of root)
-- Identify root part: if `start` exists, find part whose `Content-ID` matches (note angle brackets); else first part is root
-- Store in parsed structure: `message.related_root_index` or flag on the root part
+Implemented:
+- Added `content_id` field to Message struct to parse Content-ID headers (RFC 2392)
+- Added `related_root_index` field to Message struct for multipart/related messages
+- `extract_content_id/1` extracts Content-ID value, stripping angle brackets
+- `resolve_related_root/2` finds root part index:
+  - If `start` parameter exists, find part whose Content-ID matches (stripping angle brackets for comparison)
+  - If no `start` parameter or no matching Content-ID, default to first part (index 0)
+- `type` parameter is preserved in content_type params for client interpretation
 
 ---
 
@@ -379,7 +382,7 @@ Suggested order based on impact and dependencies:
 9. ✅ **2.1** ~~Implement Message-ID parsing~~
 
 ### Phase 5: Enhanced Features
-10. **8.1** Add multipart/related root resolution
+10. ✅ **8.1** ~~Add multipart/related root resolution~~
 11. **10.1** Fix RFC 2047 charset conversion
 12. **10.2** Apply RFC 2047 to more headers
 13. **7.1** Full RFC 6532 UTF-8 header support

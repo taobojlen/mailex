@@ -1630,6 +1630,249 @@ defmodule Mailex.ParserTest do
     end
   end
 
+  describe "Content-ID parsing (RFC 2392)" do
+    test "extracts content_id from Content-ID header" do
+      raw = """
+      Content-Type: image/jpeg
+      Content-ID: <image001@example.com>
+
+      binary content
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_id == "image001@example.com"
+    end
+
+    test "extracts content_id without angle brackets" do
+      raw = """
+      Content-Type: image/jpeg
+      Content-ID: image001@example.com
+
+      binary content
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_id == "image001@example.com"
+    end
+
+    test "extracts content_id with whitespace around angle brackets" do
+      raw = """
+      Content-Type: image/jpeg
+      Content-ID:   < image001@example.com >
+
+      binary content
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_id == "image001@example.com"
+    end
+
+    test "handles simple content_id without @ symbol" do
+      # Some mail systems use simple identifiers without @
+      raw = """
+      Content-Type: image/jpeg
+      Content-ID: <my-graphic>
+
+      binary content
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_id == "my-graphic"
+    end
+
+    test "returns nil when Content-ID is absent" do
+      raw = """
+      Content-Type: text/plain
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_id == nil
+    end
+
+    test "extracts content_id from parts in multipart message" do
+      raw = File.read!(Path.join(@fixtures_dir, "multi-igor.msg"))
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert is_list(message.parts)
+
+      # multi-igor.msg has parts with Content-ID headers
+      parts_with_cid = Enum.filter(message.parts, & &1.content_id)
+      assert length(parts_with_cid) > 0
+
+      # Verify first part with Content-ID
+      part = Enum.find(message.parts, & &1.content_id)
+      assert part.content_id =~ "@"
+    end
+  end
+
+  describe "multipart/related root resolution (RFC 2387)" do
+    test "first part is root when no start parameter" do
+      raw = """
+      Content-Type: multipart/related; boundary="related-boundary"
+
+      --related-boundary
+      Content-Type: text/html
+
+      <html><body><img src="cid:image1"></body></html>
+      --related-boundary
+      Content-Type: image/gif
+      Content-ID: <image1>
+
+      GIF89a...
+      --related-boundary--
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_type.subtype == "related"
+      assert message.related_root_index == 0
+    end
+
+    test "identifies root by start parameter matching Content-ID" do
+      raw = """
+      Content-Type: multipart/related; boundary="related-boundary"; start="<root@example.com>"
+
+      --related-boundary
+      Content-Type: image/gif
+      Content-ID: <image1@example.com>
+
+      GIF89a...
+      --related-boundary
+      Content-Type: text/html
+      Content-ID: <root@example.com>
+
+      <html><body><img src="cid:image1@example.com"></body></html>
+      --related-boundary--
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_type.subtype == "related"
+      # Root should be the second part (index 1) because its Content-ID matches start
+      assert message.related_root_index == 1
+    end
+
+    test "identifies root with start parameter without angle brackets in value" do
+      raw = """
+      Content-Type: multipart/related; boundary="related-boundary"; start="root@example.com"
+
+      --related-boundary
+      Content-Type: image/gif
+      Content-ID: <image1@example.com>
+
+      GIF89a...
+      --related-boundary
+      Content-Type: text/html
+      Content-ID: <root@example.com>
+
+      <html><body>Root content</body></html>
+      --related-boundary--
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      # Root should still be identified by matching start to Content-ID (stripping brackets)
+      assert message.related_root_index == 1
+    end
+
+    test "falls back to first part when start parameter doesn't match any Content-ID" do
+      raw = """
+      Content-Type: multipart/related; boundary="related-boundary"; start="<nonexistent@example.com>"
+
+      --related-boundary
+      Content-Type: text/html
+
+      <html><body>This should be root as fallback</body></html>
+      --related-boundary
+      Content-Type: image/gif
+
+      GIF89a...
+      --related-boundary--
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      # No matching Content-ID, so default to first part
+      assert message.related_root_index == 0
+    end
+
+    test "related_root_index is nil for non-multipart/related messages" do
+      raw = """
+      Content-Type: multipart/mixed; boundary="mixed-boundary"
+
+      --mixed-boundary
+      Content-Type: text/plain
+
+      Body part 1
+      --mixed-boundary
+      Content-Type: text/plain
+
+      Body part 2
+      --mixed-boundary--
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_type.subtype == "mixed"
+      assert message.related_root_index == nil
+    end
+
+    test "related_root_index is nil for non-multipart messages" do
+      raw = """
+      Content-Type: text/plain
+
+      Simple body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.related_root_index == nil
+    end
+
+    test "parses bluedot-postcard.msg with nested multipart/related" do
+      raw = File.read!(Path.join(@fixtures_dir, "bluedot-postcard.msg"))
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_type.type == "multipart"
+      assert message.content_type.subtype == "alternative"
+
+      # Find the multipart/related part
+      related_part = Enum.find(message.parts, fn part ->
+        part.content_type.type == "multipart" and part.content_type.subtype == "related"
+      end)
+
+      assert related_part != nil
+      assert related_part.related_root_index == 0  # First part is root (text/html)
+
+      # Verify the parts have correct content IDs
+      image_part = Enum.find(related_part.parts, fn part ->
+        part.content_type.type == "image"
+      end)
+      assert image_part != nil
+      assert image_part.content_id == "my-graphic"
+    end
+
+    test "handles start parameter with Content-ID reference format" do
+      # RFC 2387: start parameter is a Content-ID reference
+      raw = """
+      Content-Type: multipart/related; boundary="bound"; type="text/html"; start="<main>"
+
+      --bound
+      Content-Type: image/png
+      Content-ID: <img1>
+
+      PNG data
+      --bound
+      Content-Type: text/html
+      Content-ID: <main>
+
+      <html></html>
+      --bound--
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_type.params["type"] == "text/html"
+      assert message.content_type.params["start"] == "<main>"
+      assert message.related_root_index == 1
+    end
+  end
+
   describe "parse_msg_id_list/1 NimbleParsec combinator (RFC 5322 §3.6.4)" do
     test "parses single msg-id in list" do
       assert {:ok, [["abc@example.com"]], "", _, _, _} =

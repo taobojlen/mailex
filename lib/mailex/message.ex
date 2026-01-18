@@ -18,6 +18,8 @@ defmodule Mailex.Message do
   - `:message_id` - Extracted Message-ID (without angle brackets), `nil` if not present.
   - `:in_reply_to` - List of message IDs from In-Reply-To header, `nil` if not present.
   - `:references` - List of message IDs from References header (for threading), `nil` if not present.
+  - `:content_id` - Extracted Content-ID (without angle brackets), `nil` if not present. Used in multipart/related for part references.
+  - `:related_root_index` - For multipart/related messages, the index of the root part (0-based). `nil` for non-related messages.
   """
 
   @type t :: %__MODULE__{
@@ -31,8 +33,10 @@ defmodule Mailex.Message do
           disposition_params: %{String.t() => String.t()},
           message_id: String.t() | nil,
           in_reply_to: [String.t()] | nil,
-          references: [String.t()] | nil
+          references: [String.t()] | nil,
+          content_id: String.t() | nil,
+          related_root_index: non_neg_integer() | nil
         }
 
-  defstruct [:headers, :content_type, :encoding, :body, :parts, :filename, :disposition_type, :disposition_params, :message_id, :in_reply_to, :references]
+  defstruct [:headers, :content_type, :encoding, :body, :parts, :filename, :disposition_type, :disposition_params, :message_id, :in_reply_to, :references, :content_id, :related_root_index]
 end

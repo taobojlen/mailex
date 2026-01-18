@@ -376,7 +376,9 @@ defmodule Mailex.Parser do
       disposition_params: %{},
       message_id: extract_message_id(headers["message-id"]),
       in_reply_to: extract_msg_id_list(headers["in-reply-to"]),
-      references: extract_msg_id_list(headers["references"])
+      references: extract_msg_id_list(headers["references"]),
+      content_id: extract_content_id(headers["content-id"]),
+      related_root_index: nil
     }
 
     {rest, [message], context}
@@ -650,11 +652,57 @@ defmodule Mailex.Parser do
       # For multipart/digest, default content-type is message/rfc822
       default_type = if message.content_type.subtype == "digest", do: "message/rfc822", else: nil
       parsed_parts = Enum.map(parts, &parse_part(&1, default_type))
-      %{message | parts: parsed_parts, body: nil}
+
+      # RFC 2387: For multipart/related, resolve the root part index
+      related_root_index = if message.content_type.subtype == "related" do
+        resolve_related_root(message.content_type.params, parsed_parts)
+      else
+        nil
+      end
+
+      %{message | parts: parsed_parts, body: nil, related_root_index: related_root_index}
     else
       %{message | body: body}
     end
   end
+
+  # RFC 2387 §3.2: Resolve the root part index for multipart/related
+  # If start parameter exists, find the part whose Content-ID matches (stripping angle brackets)
+  # Otherwise, the first part (index 0) is the root
+  defp resolve_related_root(params, parts) when is_list(parts) and length(parts) > 0 do
+    case params["start"] do
+      nil ->
+        # No start parameter: first part is root
+        0
+
+      start_value ->
+        # Strip angle brackets from start value for comparison
+        start_id = strip_angle_brackets(start_value)
+
+        # Find the part whose Content-ID matches
+        case Enum.find_index(parts, fn part ->
+          part.content_id == start_id
+        end) do
+          nil ->
+            # No matching Content-ID found: fall back to first part
+            0
+
+          index ->
+            index
+        end
+    end
+  end
+  defp resolve_related_root(_params, _parts), do: nil
+
+  # Strip angle brackets from a Content-ID reference value
+  defp strip_angle_brackets(value) when is_binary(value) do
+    value
+    |> String.trim()
+    |> String.trim_leading("<")
+    |> String.trim_trailing(">")
+    |> String.trim()
+  end
+  defp strip_angle_brackets(_), do: nil
 
   # Split multipart body into parts
   # RFC 2046: Boundaries must appear at the start of a line (after CRLF/LF)
@@ -709,7 +757,12 @@ defmodule Mailex.Parser do
           parts: nil,
           filename: nil,
           disposition_type: nil,
-          disposition_params: %{}
+          disposition_params: %{},
+          message_id: nil,
+          in_reply_to: nil,
+          references: nil,
+          content_id: nil,
+          related_root_index: nil
         }
     end
   end
@@ -936,6 +989,26 @@ defmodule Mailex.Parser do
   # Empty or malformed ids are rejected
   defp valid_msg_id?(id) do
     id != "" and String.contains?(id, "@")
+  end
+
+  # RFC 2392 Content-ID extraction
+  # Content-ID values may or may not have angle brackets
+  # Format: [CFWS] "<" id ">" [CFWS] or just the id value
+  defp extract_content_id(nil), do: nil
+  defp extract_content_id(value) when is_list(value), do: extract_content_id(List.first(value))
+  defp extract_content_id(value) do
+    value = String.trim(value)
+
+    # Try to extract from angle brackets first
+    case Regex.run(~r/<\s*(.+?)\s*>/, value) do
+      [_, content] ->
+        content = String.trim(content)
+        if content == "", do: nil, else: content
+
+      nil ->
+        # No angle brackets, use value as-is (if not empty)
+        if value == "", do: nil, else: value
+    end
   end
 
   # RFC 2047 encoded-word decoding
