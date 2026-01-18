@@ -125,13 +125,17 @@ Run tests: `mix test`
   **Resolution:** Added "multi-value headers" test suite in parser_test.exs that
   verifies Received, Comments, and Keywords headers are correctly stored as lists.
 
-- [ ] **Add body content validation**
-  
+- [x] **Add body content validation**
+
   Currently tests only verify structure (part count, content-types), not that
   decoded body content matches expected. The XML files contain encoded bodies,
   but the `*_decoded.xml` files contain expected decoded output.
-  
+
   **Fix:** Parse `*_decoded.xml` files and compare body content.
+
+  **Resolution:** Added "body content validation" test suite that compares decoded
+  body content with the `*_decoded_*.txt` fixture files for simple, base64-encoded,
+  multipart, and very-long-line messages.
 
 - [ ] **Add recursive part validation**
   

@@ -353,6 +353,69 @@ defmodule Mailex.ParserTest do
     end
   end
 
+  @mime4j_dir Path.join([__DIR__, "..", "fixtures", "mime4j-testmsgs"])
+
+  describe "body content validation" do
+    test "simple plain text body matches expected content" do
+      msg_path = Path.join(@mime4j_dir, "basic-plain.msg")
+      expected_path = Path.join(@mime4j_dir, "basic-plain_decoded_1.txt")
+
+      raw = File.read!(msg_path)
+      expected_body = File.read!(expected_path) |> normalize_line_endings()
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.body == String.trim_trailing(expected_body)
+    end
+
+    test "base64-encoded text body is correctly decoded" do
+      msg_path = Path.join(@mime4j_dir, "base64-encoded-text.msg")
+      expected_path = Path.join(@mime4j_dir, "base64-encoded-text_decoded_1.txt")
+
+      raw = File.read!(msg_path)
+      expected_body = File.read!(expected_path) |> normalize_line_endings()
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      # The decoded content should match (may have trailing whitespace differences)
+      assert String.trim(message.body) == String.trim(expected_body)
+    end
+
+    test "multipart message parts have correct body content" do
+      # Use intermediate-boundaries which has clear part bodies
+      msg_path = Path.join(@mime4j_dir, "intermediate-boundaries.msg")
+      expected_1 = Path.join(@mime4j_dir, "intermediate-boundaries_decoded_1_1.txt")
+      expected_2 = Path.join(@mime4j_dir, "intermediate-boundaries_decoded_1_2.txt")
+
+      raw = File.read!(msg_path)
+      expected_body_1 = File.read!(expected_1) |> normalize_line_endings()
+      expected_body_2 = File.read!(expected_2) |> normalize_line_endings()
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert is_list(message.parts)
+      assert length(message.parts) >= 2
+
+      part_1 = Enum.at(message.parts, 0)
+      part_2 = Enum.at(message.parts, 1)
+
+      assert String.trim(part_1.body) == String.trim(expected_body_1),
+             "Part 1 body mismatch"
+      assert String.trim(part_2.body) == String.trim(expected_body_2),
+             "Part 2 body mismatch"
+    end
+
+    test "very long lines are preserved in body" do
+      msg_path = Path.join(@mime4j_dir, "basic-plain-very-long-lines.msg")
+      expected_path = Path.join(@mime4j_dir, "basic-plain-very-long-lines_decoded_1.txt")
+
+      raw = File.read!(msg_path)
+      expected_body = File.read!(expected_path) |> normalize_line_endings()
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert String.trim(message.body) == String.trim(expected_body)
+    end
+  end
+
+  defp normalize_line_endings(str), do: String.replace(str, "\r\n", "\n")
+
   # Helper to validate parsed message against MIME-tools expected output
   defp validate_against_expected(message, expected, test_name) do
     msg_expected = expected["Msg"]
