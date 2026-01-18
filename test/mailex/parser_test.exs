@@ -194,6 +194,12 @@ defmodule Mailex.ParserTest do
       assert {:ok, message} = Mailex.Parser.parse(raw)
       assert message.body == "Hello World!"
     end
+
+    test "preserves backslashes in RFC 2047 decoded content" do
+      # Base64 encoded "C:\Users\file.txt"
+      encoded = "=?UTF-8?B?QzpcVXNlcnNcZmlsZS50eHQ=?="
+      assert Mailex.Parser.decode_rfc2047(encoded) == "C:\\Users\\file.txt"
+    end
   end
 
   describe "edge cases and malformed messages" do

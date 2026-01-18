@@ -184,10 +184,22 @@ defmodule Mailex.Parser do
   end
 
   defp unquote_value(value) do
-    value
-    |> String.trim()
-    |> String.trim_leading("\"")
-    |> String.trim_trailing("\"")
+    value = String.trim(value)
+
+    if String.starts_with?(value, "\"") and String.ends_with?(value, "\"") do
+      value
+      |> String.slice(1..-2//1)
+      |> unescape_quoted_string()
+    else
+      value
+    end
+  end
+
+  # Handle backslash escapes in quoted strings (RFC 2822)
+  # A backslash followed by any character means just that character
+  defp unescape_quoted_string(str) do
+    str
+    |> String.replace(~r/\\(.)/, "\\1")
   end
 
   defp get_encoding(headers) do
@@ -391,9 +403,7 @@ defmodule Mailex.Parser do
       end
     end)
 
-    # Also handle escaped backslashes (remove them per RFC 2231)
     decoded
-    |> String.replace("\\", "")
   end
 
   # Q encoding is similar to quoted-printable but uses underscore for space
