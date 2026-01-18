@@ -87,7 +87,7 @@ Run tests: `mix test`
   
   **Fix:** Don't trim the body, or only trim for text/* content types.
 
-- [ ] **No struct for Message**
+- [x] **No struct for Message**
   
   Currently returns plain maps like:
   ```elixir

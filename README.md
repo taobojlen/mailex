@@ -42,25 +42,25 @@ message = Mailex.parse!(raw_email)
 ### `Mailex.parse/1`
 
 ```elixir
-@spec parse(binary()) :: {:ok, map()} | {:error, term()}
+@spec parse(binary()) :: {:ok, Mailex.Message.t()} | {:error, term()}
 ```
 
-Parses a raw email message string into a structured map. Returns `{:ok, message}` on success, `{:error, reason}` on failure.
+Parses a raw email message string into a `Mailex.Message` struct. Returns `{:ok, message}` on success, `{:error, reason}` on failure.
 
 ### `Mailex.parse!/1`
 
 ```elixir
-@spec parse!(binary()) :: map()
+@spec parse!(binary()) :: Mailex.Message.t()
 ```
 
 Parses a raw email message string, raising on failure.
 
 ## Message Structure
 
-The parser returns a map with the following fields:
+The parser returns a `%Mailex.Message{}` struct with the following fields:
 
 ```elixir
-%{
+%Mailex.Message{
   headers: %{
     "from" => "sender@example.com",
     "to" => "recipient@example.com",
@@ -87,7 +87,7 @@ The parser returns a map with the following fields:
 | `content_type` | `map` | Parsed Content-Type with `type`, `subtype`, and `params`. Defaults to `text/plain`. |
 | `encoding` | `string` | Content-Transfer-Encoding. Defaults to `"7bit"`. |
 | `body` | `string \| nil` | Decoded message body for non-multipart messages. |
-| `parts` | `list \| nil` | List of parsed parts for multipart messages. Each part has the same structure. |
+| `parts` | `list \| nil` | List of `%Mailex.Message{}` structs for multipart messages. |
 | `filename` | `string \| nil` | Filename from Content-Disposition or Content-Type name parameter. |
 
 ## Features

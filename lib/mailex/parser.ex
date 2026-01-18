@@ -3,6 +3,8 @@ defmodule Mailex.Parser do
   RFC 5322 email message parser using NimbleParsec.
   """
 
+  alias Mailex.Message
+
   import NimbleParsec
 
   # Characters
@@ -121,7 +123,7 @@ defmodule Mailex.Parser do
     content_type = parse_content_type(headers["content-type"])
     encoding = get_encoding(headers)
 
-    message = %{
+    message = %Message{
       headers: headers,
       content_type: content_type,
       encoding: encoding,
@@ -288,7 +290,7 @@ defmodule Mailex.Parser do
       {:error, _} ->
         # If parsing fails, treat as plain text
         {type, subtype} = parse_default_type(default_type)
-        %{
+        %Message{
           headers: %{},
           content_type: %{type: type, subtype: subtype, params: %{}},
           encoding: "7bit",
