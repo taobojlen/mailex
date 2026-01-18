@@ -244,7 +244,7 @@ When `content-type` is `multipart/related`:
 
 ### 9.1 Disposition type and additional parameters not exposed
 
-**Status:** Partially Implemented
+**Status:** ✅ Implemented
 
 **Problem:** `parse_disposition_params/1` uses `String.split(disposition, ";")` which:
 - Ignores disposition-type token (`inline`/`attachment`/extension-token)
@@ -256,16 +256,18 @@ When `content-type` is `multipart/related`:
 - RFC 2183 §2.1-2.4 — Parameters: filename, creation-date, modification-date, read-date, size
 
 **Implementation:**
-- Parse disposition-type as a token
-- Use proper MIME parameter parser (same as Content-Type)
-- Expose full params map, not just filename
-- Optionally parse `size` as integer and `*-date` params as RFC 5322 date-time
+Implemented:
+- `parse_content_disposition/1` uses `tokenize_header_value/1` to properly parse disposition-type and parameters
+- Disposition-type is extracted and stored in `Message.disposition_type` (lowercased)
+- All parameters are exposed in `Message.disposition_params` map
+- Properly handles quoted-strings containing semicolons
+- Handles extension disposition-type tokens (e.g., `form-data`)
 
 ---
 
 ### 9.2 RFC 2231 parameter handling edge cases
 
-**Status:** Partially Implemented (edge cases)
+**Status:** ✅ Implemented
 
 **Problem:** RFC 2231 implementation may have issues with:
 1. **Precedence:** If both `filename` and `filename*` exist, `filename*` should win
@@ -278,11 +280,13 @@ When `content-type` is `multipart/related`:
 - RFC 2231 §4 — Continuations
 
 **Implementation:**
-- Collect segments in order (`*0*`, `*1*`...)
-- First segment: parse `charset'lang'bytes`
-- Subsequent segments: just percent-encoded bytes (no charset prefix)
-- Percent-decode all bytes, then convert from charset to UTF-8 once at end
-- Ensure `param*` takes precedence over `param` in final params map
+Implemented:
+- `reassemble_rfc2231_params/1` correctly handles precedence: regular < extended < reassembled (later takes precedence)
+- Extended values (`param*`) take precedence over regular values (`param`)
+- Continuation segments sorted and concatenated in order
+- First segment with `*` has `charset'lang'bytes`, subsequent segments are just percent-encoded
+- `percent_decode_to_binary/1` decodes percent-encoded bytes first, then `convert_charset/2` converts from source charset
+- Mixed encoded (`*N*`) and unencoded (`*N`) continuation segments handled correctly
 
 ---
 
@@ -360,11 +364,11 @@ Suggested order based on impact and dependencies:
 3. ✅ **5.1** ~~Implement CFWS/comment handling~~
 4. ✅ **Phase 2 complete** ~~Implement `token` parser per RFC 2045~~
 
-### Phase 3: MIME Parsing Rebuild
+### Phase 3: MIME Parsing Rebuild ✅
 5. ✅ **3.1** ~~Rebuild Content-Type parser using primitives~~
 6. ✅ **3.2** ~~Complete Content-Type defaults~~
-7. **9.1** Rebuild Content-Disposition parser
-8. **9.2** Fix RFC 2231 edge cases
+7. ✅ **9.1** ~~Rebuild Content-Disposition parser~~
+8. ✅ **9.2** ~~Fix RFC 2231 edge cases~~
 
 ### Phase 4: Structured Header Parsing
 9. **2.1** Implement Message-ID parsing

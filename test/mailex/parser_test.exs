@@ -894,6 +894,225 @@ defmodule Mailex.ParserTest do
     end
   end
 
+  describe "Content-Disposition parsing (RFC 2183 §2)" do
+    test "parses disposition-type token (inline)" do
+      raw = """
+      Content-Type: text/plain
+      Content-Disposition: inline
+
+      Body text.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.disposition_type == "inline"
+    end
+
+    test "parses disposition-type token (attachment)" do
+      raw = """
+      Content-Type: application/octet-stream
+      Content-Disposition: attachment; filename="test.txt"
+
+      body
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.disposition_type == "attachment"
+      assert message.filename == "test.txt"
+    end
+
+    test "parses disposition-type case-insensitively" do
+      raw = """
+      Content-Type: text/plain
+      Content-Disposition: ATTACHMENT; filename="test.txt"
+
+      body
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.disposition_type == "attachment"
+    end
+
+    test "exposes all disposition params not just filename" do
+      raw = """
+      Content-Type: application/octet-stream
+      Content-Disposition: attachment; filename="test.txt"; size=12345
+
+      body
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.disposition_type == "attachment"
+      assert message.disposition_params["filename"] == "test.txt"
+      assert message.disposition_params["size"] == "12345"
+    end
+
+    test "parses creation-date, modification-date, read-date params" do
+      raw = """
+      Content-Type: application/octet-stream
+      Content-Disposition: attachment; filename="test.txt";
+       creation-date="Tue, 15 Jan 2019 10:30:00 -0500";
+       modification-date="Wed, 16 Jan 2019 11:00:00 -0500";
+       read-date="Thu, 17 Jan 2019 09:00:00 -0500"
+
+      body
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.disposition_params["creation-date"] == "Tue, 15 Jan 2019 10:30:00 -0500"
+      assert message.disposition_params["modification-date"] == "Wed, 16 Jan 2019 11:00:00 -0500"
+      assert message.disposition_params["read-date"] == "Thu, 17 Jan 2019 09:00:00 -0500"
+    end
+
+    test "handles quoted-string containing semicolon in disposition params" do
+      raw = """
+      Content-Type: application/octet-stream
+      Content-Disposition: attachment; filename="file;name.txt"
+
+      body
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.disposition_params["filename"] == "file;name.txt"
+    end
+
+    test "handles extension disposition-type tokens" do
+      raw = """
+      Content-Type: text/plain
+      Content-Disposition: form-data; name="field1"
+
+      value
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.disposition_type == "form-data"
+      assert message.disposition_params["name"] == "field1"
+    end
+
+    test "handles missing Content-Disposition" do
+      raw = """
+      Content-Type: text/plain
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.disposition_type == nil
+      assert message.disposition_params == %{}
+    end
+  end
+
+  describe "RFC 2231 parameter precedence (item 9.2)" do
+    test "filename* takes precedence over filename" do
+      raw = """
+      Content-Type: application/octet-stream
+      Content-Disposition: attachment;
+       filename="fallback.txt";
+       filename*=UTF-8''preferred.txt
+
+      body
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.filename == "preferred.txt"
+    end
+
+    test "filename* takes precedence over filename (reverse order)" do
+      raw = """
+      Content-Type: application/octet-stream
+      Content-Disposition: attachment;
+       filename*=UTF-8''preferred.txt;
+       filename="fallback.txt"
+
+      body
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.filename == "preferred.txt"
+    end
+
+    test "continuation filename*0* takes precedence over filename" do
+      raw = """
+      Content-Type: application/octet-stream
+      Content-Disposition: attachment;
+       filename="fallback.txt";
+       filename*0*=UTF-8''pre;
+       filename*1*=ferred.txt
+
+      body
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.filename == "preferred.txt"
+    end
+  end
+
+  describe "RFC 2231 continuation edge cases (item 9.2)" do
+    test "only first segment has charset'lang' prefix, subsequent segments are just percent-encoded" do
+      # RFC 2231 §4.1: charset and language only in first segment
+      raw = """
+      Content-Type: application/octet-stream
+      Content-Disposition: attachment;
+       filename*0*=UTF-8''Hello%20;
+       filename*1*=World.txt
+
+      body
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      # filename*1* is just percent-encoded bytes, no charset prefix
+      assert message.filename == "Hello World.txt"
+    end
+
+    test "mixed encoded and unencoded continuation segments" do
+      # RFC 2231 §4.1 example: mixture of encoded (*) and unencoded segments
+      raw = """
+      Content-Type: application/x-stuff
+      Content-Disposition: attachment;
+       title*0*=UTF-8''This%20is%20;
+       title*1*=even%20more%20;
+       title*2="fun isn't it!"
+
+      body
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.disposition_params["title"] == "This is even more fun isn't it!"
+    end
+
+    test "extended values are NOT quoted-strings - percent-decode directly" do
+      # RFC 2231: extended values use percent-encoding, not quoted-string syntax
+      # Do not unquote before percent-decoding
+      raw = """
+      Content-Type: application/octet-stream
+      Content-Disposition: attachment;
+       filename*=UTF-8''%22quoted%22.txt
+
+      body
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      # Should be literal "quoted".txt, not stripping the quotes
+      assert message.filename == "\"quoted\".txt"
+    end
+
+    test "decodes percent-encoded bytes then converts charset" do
+      # First segment has charset, subsequent are just percent-encoded
+      # ISO-8859-1 encoded German umlauts
+      raw = """
+      Content-Type: application/octet-stream
+      Content-Disposition: attachment;
+       filename*0*=ISO-8859-1''Gr%FC%DF;
+       filename*1*=e.txt
+
+      body
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      # ü = 0xFC, ß = 0xDF in ISO-8859-1
+      assert message.filename == "Grüße.txt"
+    end
+  end
+
   describe "RFC 2231 parameter continuations" do
     test "reassembles simple continuation parameters (filename*0, filename*1)" do
       raw = """

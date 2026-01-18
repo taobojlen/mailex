@@ -13,6 +13,8 @@ defmodule Mailex.Message do
     `nil` for multipart/message containers where content is in `:parts`.
   - `:parts` - List of `%Mailex.Message{}` structs for multipart messages, `nil` otherwise.
   - `:filename` - Extracted filename from Content-Disposition or Content-Type name parameter.
+  - `:disposition_type` - Content-Disposition type ("inline", "attachment", or extension token), `nil` if not present.
+  - `:disposition_params` - Map of Content-Disposition parameters (filename, size, creation-date, etc.), empty map if not present.
   - `:message_id` - Extracted Message-ID (without angle brackets), `nil` if not present.
   - `:in_reply_to` - List of message IDs from In-Reply-To header, `nil` if not present.
   - `:references` - List of message IDs from References header (for threading), `nil` if not present.
@@ -25,10 +27,12 @@ defmodule Mailex.Message do
           body: binary() | nil,
           parts: [t()] | nil,
           filename: String.t() | nil,
+          disposition_type: String.t() | nil,
+          disposition_params: %{String.t() => String.t()},
           message_id: String.t() | nil,
           in_reply_to: [String.t()] | nil,
           references: [String.t()] | nil
         }
 
-  defstruct [:headers, :content_type, :encoding, :body, :parts, :filename, :message_id, :in_reply_to, :references]
+  defstruct [:headers, :content_type, :encoding, :body, :parts, :filename, :disposition_type, :disposition_params, :message_id, :in_reply_to, :references]
 end

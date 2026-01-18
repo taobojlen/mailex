@@ -283,6 +283,8 @@ defmodule Mailex.Parser do
       body: nil,
       parts: nil,
       filename: nil,
+      disposition_type: nil,
+      disposition_params: %{},
       message_id: extract_message_id(headers["message-id"]),
       in_reply_to: extract_msg_id_list(headers["in-reply-to"]),
       references: extract_msg_id_list(headers["references"])
@@ -405,11 +407,6 @@ defmodule Mailex.Parser do
   defp find_equals(<<"=", _rest::binary>>, pos, false), do: pos
   defp find_equals(<<_, rest::binary>>, pos, in_quote) do
     find_equals(rest, pos + 1, in_quote)
-  end
-
-  # Legacy parse_params for places that already have split parts
-  defp parse_params(parts) do
-    parse_params_from_tokens(parts)
   end
 
   # RFC 2231 parameter continuation reassembly and extended value decoding
@@ -621,7 +618,9 @@ defmodule Mailex.Parser do
           encoding: "7bit",
           body: part_content,
           parts: nil,
-          filename: nil
+          filename: nil,
+          disposition_type: nil,
+          disposition_params: %{}
         }
     end
   end
@@ -646,33 +645,40 @@ defmodule Mailex.Parser do
     end
   end
 
-  # Extract filename from Content-Disposition header
+  # Parse Content-Disposition header and extract filename, disposition_type, disposition_params
   defp extract_filename(message) do
-    filename = case message.headers["content-disposition"] do
-      nil ->
-        # Try Content-Type name parameter
-        message.content_type.params["name"]
+    {disposition_type, disposition_params} = parse_content_disposition(message.headers["content-disposition"])
 
-      disposition when is_binary(disposition) ->
-        params = parse_disposition_params(disposition)
-        params["filename"] || message.content_type.params["name"]
-
-      _ ->
-        nil
-    end
+    # Get filename from disposition params, falling back to Content-Type name parameter
+    filename = disposition_params["filename"] || message.content_type.params["name"]
 
     # Decode RFC 2047 encoded words in filename
     filename = decode_rfc2047(filename)
-    %{message | filename: filename}
+
+    %{message |
+      filename: filename,
+      disposition_type: disposition_type,
+      disposition_params: disposition_params
+    }
   end
 
-  defp parse_disposition_params(disposition) do
-    # Strip RFC 5322 comments before parsing
-    disposition = strip_comments(disposition)
+  # Parse Content-Disposition header
+  # RFC 2183 §2: disposition := disposition-type *(";" disposition-parm)
+  defp parse_content_disposition(nil), do: {nil, %{}}
+  defp parse_content_disposition(value) when is_list(value), do: parse_content_disposition(List.first(value))
+  defp parse_content_disposition(value) do
+    # Strip RFC 5322 comments before tokenizing
+    value = strip_comments(value)
 
-    case String.split(disposition, ";") do
-      [_type | params] -> parse_params(params)
-      _ -> %{}
+    # Tokenize respecting quoted-strings, then split on semicolons
+    case tokenize_header_value(value) do
+      [type_part | param_parts] ->
+        disposition_type = type_part |> String.trim() |> String.downcase()
+        params = parse_params_from_tokens(param_parts)
+        {disposition_type, params}
+
+      [] ->
+        {nil, %{}}
     end
   end
 
