@@ -1916,4 +1916,188 @@ defmodule Mailex.ParserTest do
       assert {:error, _, _, _, _, _} = Mailex.Parser.parse_msg_id_list("not a message id")
     end
   end
+
+  describe "RFC 2047 charset-aware decoding (item 10.1)" do
+    test "decode_rfc2047 converts ISO-8859-1 to UTF-8" do
+      # =?ISO-8859-1?Q?Gr=FC=DFe?= should decode to "Grüße"
+      # ü = 0xFC, ß = 0xDF in ISO-8859-1
+      input = "=?ISO-8859-1?Q?Gr=FC=DFe?="
+      assert Mailex.Parser.decode_rfc2047(input) == "Grüße"
+    end
+
+    test "decode_rfc2047 converts ISO-8859-1 Base64 to UTF-8" do
+      # "Grüße" in ISO-8859-1 bytes, Base64 encoded
+      # Gr = 0x47 0x72, ü = 0xFC, ß = 0xDF, e = 0x65
+      # Base64 of <<0x47, 0x72, 0xFC, 0xDF, 0x65>> = "R3L832U="
+      input = "=?ISO-8859-1?B?R3L832U=?="
+      assert Mailex.Parser.decode_rfc2047(input) == "Grüße"
+    end
+
+    test "decode_rfc2047 handles UTF-8 charset" do
+      # UTF-8 encoded "日本語" in Base64
+      input = "=?UTF-8?B?5pel5pys6Kqe?="
+      assert Mailex.Parser.decode_rfc2047(input) == "日本語"
+    end
+
+    test "decode_rfc2047 handles UTF-8 Q-encoding" do
+      # "café" in UTF-8 Q-encoded (é is 0xC3 0xA9 in UTF-8)
+      input = "=?UTF-8?Q?caf=C3=A9?="
+      assert Mailex.Parser.decode_rfc2047(input) == "café"
+    end
+
+    test "decode_rfc2047 collapses whitespace between adjacent encoded-words" do
+      # RFC 2047 §6.2: Whitespace between adjacent encoded-words should be ignored
+      input = "=?UTF-8?Q?Hello?= =?UTF-8?Q?World?="
+      assert Mailex.Parser.decode_rfc2047(input) == "HelloWorld"
+    end
+
+    test "decode_rfc2047 collapses multiple spaces between adjacent encoded-words" do
+      input = "=?UTF-8?Q?Hello?=   =?UTF-8?Q?World?="
+      assert Mailex.Parser.decode_rfc2047(input) == "HelloWorld"
+    end
+
+    test "decode_rfc2047 collapses folded whitespace between adjacent encoded-words" do
+      # Newline + space between encoded words should be collapsed
+      input = "=?UTF-8?Q?Hello?=\n =?UTF-8?Q?World?="
+      assert Mailex.Parser.decode_rfc2047(input) == "HelloWorld"
+    end
+
+    test "decode_rfc2047 preserves whitespace when not between encoded-words" do
+      # Whitespace before or after non-encoded text should be preserved
+      input = "Hello =?UTF-8?Q?World?="
+      assert Mailex.Parser.decode_rfc2047(input) == "Hello World"
+    end
+
+    test "decode_rfc2047 handles mixed encoded and plain text" do
+      input = "Re: =?UTF-8?Q?caf=C3=A9?= meeting"
+      assert Mailex.Parser.decode_rfc2047(input) == "Re: café meeting"
+    end
+
+    test "decode_rfc2047 handles us-ascii charset" do
+      input = "=?US-ASCII?Q?Hello_World?="
+      assert Mailex.Parser.decode_rfc2047(input) == "Hello World"
+    end
+
+    test "decode_rfc2047 handles unknown charset gracefully" do
+      # Unknown charset should still decode but return bytes as-is
+      input = "=?X-UNKNOWN?Q?Test?="
+      assert Mailex.Parser.decode_rfc2047(input) == "Test"
+    end
+
+    test "decode_rfc2047 handles charset with language tag" do
+      # charset*language format (RFC 2231)
+      input = "=?ISO-8859-1*de?Q?Gr=FC=DFe?="
+      assert Mailex.Parser.decode_rfc2047(input) == "Grüße"
+    end
+  end
+
+  describe "RFC 2047 applied to headers (item 10.2)" do
+    test "Subject header is RFC 2047 decoded" do
+      raw = """
+      From: sender@example.com
+      Subject: =?UTF-8?Q?caf=C3=A9?= menu
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.headers["subject"] == "café menu"
+    end
+
+    test "Subject header with ISO-8859-1 is decoded to UTF-8" do
+      raw = """
+      From: sender@example.com
+      Subject: =?ISO-8859-1?Q?Gr=FC=DFe?= from Germany
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.headers["subject"] == "Grüße from Germany"
+    end
+
+    test "Subject header with adjacent encoded-words collapses whitespace" do
+      raw = """
+      From: sender@example.com
+      Subject: =?UTF-8?Q?Hello?= =?UTF-8?Q?World?=
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.headers["subject"] == "HelloWorld"
+    end
+
+    test "Subject header with folded encoded-words" do
+      raw = "From: sender@example.com\nSubject: =?UTF-8?Q?Hello?=\n =?UTF-8?Q?World?=\n\nBody.\n"
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.headers["subject"] == "HelloWorld"
+    end
+
+    test "Comments header is RFC 2047 decoded" do
+      raw = """
+      From: sender@example.com
+      Subject: Test
+      Comments: =?UTF-8?Q?caf=C3=A9?= related
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.headers["comments"] == "café related"
+    end
+
+    test "multiple encoded-words in Subject are all decoded" do
+      raw = """
+      From: sender@example.com
+      Subject: =?UTF-8?B?5pel5pys6Kqe?= and =?UTF-8?Q?caf=C3=A9?=
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.headers["subject"] == "日本語 and café"
+    end
+  end
+
+  describe "RFC 6532 UTF-8 headers verification (item 7.1)" do
+    # These tests verify that raw UTF-8 in headers is supported without RFC 2047 encoding
+    # This is already working due to NimbleParsec handling, but we document it explicitly
+
+    test "raw UTF-8 in Subject header without RFC 2047 encoding" do
+      raw = "From: sender@example.com\nSubject: 日本語のテスト\n\nBody.\n"
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.headers["subject"] == "日本語のテスト"
+    end
+
+    test "raw UTF-8 in From header display name" do
+      raw = "From: 田中太郎 <tanaka@example.com>\nSubject: Test\n\nBody.\n"
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.headers["from"] == "田中太郎 <tanaka@example.com>"
+    end
+
+    test "raw UTF-8 mixed with ASCII in headers" do
+      raw = "From: sender@example.com\nSubject: Meeting at café 日本\n\nBody.\n"
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.headers["subject"] == "Meeting at café 日本"
+    end
+
+    test "raw UTF-8 in custom X- header" do
+      raw = "From: sender@example.com\nX-Custom: カスタムヘッダー\n\nBody.\n"
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.headers["x-custom"] == "カスタムヘッダー"
+    end
+
+    test "UTF-8 preserved through header folding" do
+      raw = "From: sender@example.com\nSubject: Long UTF-8 subject 日本語の長いサブジェクト\n that continues here\n\nBody.\n"
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.headers["subject"] == "Long UTF-8 subject 日本語の長いサブジェクト that continues here"
+    end
+  end
 end

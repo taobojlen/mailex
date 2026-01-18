@@ -191,7 +191,7 @@ Pending (depends on address parsing):
 
 ### 7.1 RFC 6532 UTF-8 headers not supported
 
-**Status:** Not Implemented
+**Status:** ✅ Implemented
 
 **Problem:** Header body parsing rejects non-ASCII bytes (see 1.1). RFC 6532 allows raw UTF-8 directly in headers without RFC 2047 encoding.
 
@@ -200,15 +200,17 @@ Pending (depends on address parsing):
 - RFC 6532 §3.2 — Syntax Extensions to RFC 5322
 
 **Implementation:**
-- Allow raw UTF-8 bytes in header field bodies
-- Update structured parsers (addresses, phrases) to accept UTF-8 where RFC 6532 permits
-- Keep field-names ASCII-only (RFC 6532 does not allow UTF-8 field names)
+Implemented:
+- NimbleParsec header body parser uses `utf8_char` for comment parsing and `ascii_char([not: ?\r, not: ?\n])` for field body
+- Raw UTF-8 bytes are preserved through header parsing without modification
+- Field-names remain ASCII-only (correct per RFC 6532)
+- Tests verify raw UTF-8 in Subject, From, custom X- headers, and through header folding
 
 ---
 
 ### 7.2 Internationalized email addresses not supported
 
-**Status:** Not Implemented
+**Status:** Deferred (requires address parsing)
 
 **Problem:** Non-ASCII local-parts and domains (EAI - Email Address Internationalization) cannot be parsed because address parsing doesn't exist.
 
@@ -218,8 +220,10 @@ Pending (depends on address parsing):
 - RFC 5890/5891 — IDNA (Internationalized Domain Names)
 
 **Implementation:**
+Deferred until address parsing is implemented:
 - When implementing `addr-spec`, permit UTF-8 in local-part and domain
 - Consider returning both original UTF-8 address and ASCII-compatible (punycode) domain form
+- Note: Raw UTF-8 in header values (including address display names) is already supported via 7.1
 
 ---
 
@@ -302,7 +306,7 @@ Implemented:
 
 ### 10.1 RFC 2047 decoding is not charset-aware
 
-**Status:** Partially Implemented (buggy)
+**Status:** ✅ Implemented
 
 **Problem:** `decode_rfc2047/1` decodes Base64/Q to bytes but never converts from declared charset to UTF-8. Also missing adjacent encoded-word whitespace handling.
 
@@ -311,16 +315,18 @@ Implemented:
 - RFC 2047 §6.2 — Whitespace between adjacent encoded-words should be ignored
 
 **Implementation:**
-- Extract charset from encoded-word
-- Decode bytes (Base64 or Q)
-- Convert bytes from charset to UTF-8 using `convert_charset/2`
-- Collapse whitespace between adjacent encoded-words (linear whitespace between `?=` and `=?` should be ignored)
+Implemented:
+- `decode_rfc2047/1` now extracts charset and uses `convert_charset/2` to convert to UTF-8
+- Supports ISO-8859-1/15, US-ASCII, UTF-8, and other charsets via codepagex
+- Adjacent encoded-word whitespace collapsing: `?=[ \t\r\n]+=?` patterns are collapsed
+- `decode_base64_to_binary/1` and `decode_q_encoding_to_binary/1` for proper binary handling
+- Handles charset with language tag (e.g., `ISO-8859-1*de`)
 
 ---
 
 ### 10.2 RFC 2047 only applied to filename, not other headers
 
-**Status:** Partially Implemented
+**Status:** ✅ Implemented
 
 **Problem:** RFC 2047 decoding is only applied to filename extraction. Should also be applied to:
 - Subject header
@@ -332,9 +338,11 @@ Implemented:
 - RFC 2047 §5 — Use of encoded-words in message headers
 
 **Implementation:**
-- Apply RFC 2047 decoding to unstructured headers: Subject, Comments
-- Apply to display-name portion of addresses after address parsing
-- Apply to comments within structured fields if comments are preserved
+Implemented:
+- `build_headers/1` now applies `decode_rfc2047/1` to all header values during parsing
+- Subject and Comments headers are always decoded
+- Other headers are decoded if they contain encoded-word patterns (`=?` and `?=`)
+- Display-names in address headers are decoded (address parsing itself is separate feature)
 
 ---
 
@@ -381,12 +389,12 @@ Suggested order based on impact and dependencies:
 ### Phase 4: Structured Header Parsing ✅
 9. ✅ **2.1** ~~Implement Message-ID parsing~~
 
-### Phase 5: Enhanced Features
+### Phase 5: Enhanced Features ✅
 10. ✅ **8.1** ~~Add multipart/related root resolution~~
-11. **10.1** Fix RFC 2047 charset conversion
-12. **10.2** Apply RFC 2047 to more headers
-13. **7.1** Full RFC 6532 UTF-8 header support
-14. **7.2** Internationalized address support
+11. ✅ **10.1** ~~Fix RFC 2047 charset conversion~~
+12. ✅ **10.2** ~~Apply RFC 2047 to more headers~~
+13. ✅ **7.1** ~~Full RFC 6532 UTF-8 header support~~
+14. ⏸️ **7.2** Internationalized address support (deferred: requires address parsing)
 
 ### Phase 6: Robustness
 15. **4.1** Add obsolete syntax tolerance

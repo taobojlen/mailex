@@ -385,10 +385,15 @@ defmodule Mailex.Parser do
   end
 
   # Build headers map from list of [name, value] pairs
+  # Applies RFC 2047 decoding to unstructured headers (Subject, Comments, etc.)
   defp build_headers(pairs) do
     Enum.reduce(pairs, %{}, fn [name, value], acc ->
       key = String.downcase(name)
       value = String.trim(value)
+
+      # Apply RFC 2047 decoding to unstructured headers
+      # RFC 2047 §5: encoded-words can appear in Subject, Comments, and other unstructured fields
+      value = decode_header_value(key, value)
 
       case Map.get(acc, key) do
         nil -> Map.put(acc, key, value)
@@ -396,6 +401,20 @@ defmodule Mailex.Parser do
         existing -> Map.put(acc, key, [existing, value])
       end
     end)
+  end
+
+  # Decode RFC 2047 encoded-words in header values
+  # Applied to unstructured headers and display-name portions of address headers
+  defp decode_header_value(key, value) when key in ["subject", "comments"] do
+    decode_rfc2047(value)
+  end
+  # For other headers, only decode if they contain encoded-word patterns
+  defp decode_header_value(_key, value) do
+    if String.contains?(value, "=?") and String.contains?(value, "?=") do
+      decode_rfc2047(value)
+    else
+      value
+    end
   end
 
   # Parse Content-Type header
@@ -1013,25 +1032,47 @@ defmodule Mailex.Parser do
 
   # RFC 2047 encoded-word decoding
   # Format: =?charset?encoding?encoded_text?=
+  # Also handles RFC 2047 §6.2: whitespace between adjacent encoded-words should be ignored
   def decode_rfc2047(nil), do: nil
   def decode_rfc2047(str) do
+    # First, collapse whitespace between adjacent encoded-words
+    # RFC 2047 §6.2: Any 'linear-white-space' between 'encoded-word's is ignored
+    # Adjacent encoded-words: ?= followed by whitespace followed by =?
+    str = Regex.replace(~r/\?=[ \t\r\n]+\=\?/, str, "?==?")
+
     # Pattern for RFC 2047 encoded words
-    # charset can include language tag like US-ASCII*EN
+    # charset can include language tag like US-ASCII*EN (RFC 2231)
     pattern = ~r/=\?([^?*]+)(?:\*[^?]*)?\?([BbQq])\?([^?]*)\?=/
 
-    decoded = Regex.replace(pattern, str, fn _, _charset, encoding, encoded_text ->
-      case String.upcase(encoding) do
-        "B" -> decode_base64(encoded_text)
-        "Q" -> decode_q_encoding(encoded_text)
+    decoded = Regex.replace(pattern, str, fn _, charset, encoding, encoded_text ->
+      # Decode the bytes first
+      decoded_bytes = case String.upcase(encoding) do
+        "B" -> decode_base64_to_binary(encoded_text)
+        "Q" -> decode_q_encoding_to_binary(encoded_text)
         _ -> encoded_text
       end
+
+      # Convert from charset to UTF-8
+      convert_charset(decoded_bytes, charset)
     end)
 
     decoded
   end
 
-  # Q encoding is similar to quoted-printable but uses underscore for space
-  defp decode_q_encoding(str) do
+  # Decode Base64 to raw binary (for RFC 2047)
+  defp decode_base64_to_binary(str) do
+    str
+    |> String.replace(~r/\s/, "")
+    |> Base.decode64()
+    |> case do
+      {:ok, decoded} -> decoded
+      :error -> str
+    end
+  end
+
+  # Q encoding to raw binary (for RFC 2047)
+  # Similar to quoted-printable but uses underscore for space
+  defp decode_q_encoding_to_binary(str) do
     str
     |> String.replace("_", " ")
     |> decode_qp_chars()
