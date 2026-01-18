@@ -72,9 +72,8 @@ defmodule Mailex.Parser do
 
     case parse_headers(raw) do
       {:ok, [message], rest, _, _, _} ->
-        # rest is the body
-        body = String.trim_trailing(rest)
-        message = process_body(message, body)
+        # rest is the body - don't trim here to avoid corrupting binary content
+        message = process_body(message, rest)
         {:ok, message}
 
       {:error, reason, _, _, _, _} ->
@@ -222,6 +221,8 @@ defmodule Mailex.Parser do
       true ->
         charset = message.content_type.params["charset"]
         is_text = message.content_type.type == "text"
+        # Only trim trailing whitespace for text content to avoid corrupting binary data
+        body = if is_text, do: String.trim_trailing(body), else: body
         decoded_body = decode_body(body, message.encoding, charset, is_text)
         %{message | body: decoded_body}
     end
