@@ -416,6 +416,117 @@ defmodule Mailex.ParserTest do
 
   defp normalize_line_endings(str), do: String.replace(str, "\r\n", "\n")
 
+  describe "recursive part validation" do
+    test "nested multipart structure is correctly parsed" do
+      # multi-nested.msg has multipart/mixed with a nested multipart/parallel
+      msg_path = Path.join(@mime4j_dir, "multi-nested.msg")
+      raw = File.read!(msg_path)
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+
+      # Top level is multipart/mixed with 5 parts
+      assert message.content_type.type == "multipart"
+      assert message.content_type.subtype == "mixed"
+      assert length(message.parts) == 5
+
+      # Part 1: text/plain (implicit)
+      part_1 = Enum.at(message.parts, 0)
+      assert part_1.content_type.type == "text"
+      assert part_1.content_type.subtype == "plain"
+      assert part_1.body =~ "Part 1 of the outer message"
+
+      # Part 2: text/plain (explicit)
+      part_2 = Enum.at(message.parts, 1)
+      assert part_2.content_type.type == "text"
+      assert part_2.content_type.subtype == "plain"
+
+      # Part 3: nested multipart/parallel with 2 image parts
+      part_3 = Enum.at(message.parts, 2)
+      assert part_3.content_type.type == "multipart"
+      assert part_3.content_type.subtype == "parallel"
+      assert is_list(part_3.parts)
+      assert length(part_3.parts) == 2
+
+      # Nested image parts
+      nested_1 = Enum.at(part_3.parts, 0)
+      nested_2 = Enum.at(part_3.parts, 1)
+      assert nested_1.content_type.type == "image"
+      assert nested_1.content_type.subtype == "gif"
+      assert nested_1.filename == "3d-vise.gif"
+      assert nested_2.content_type.type == "image"
+      assert nested_2.content_type.subtype == "gif"
+      assert nested_2.filename == "3d-eye.gif"
+
+      # Part 4: text/richtext
+      part_4 = Enum.at(message.parts, 3)
+      assert part_4.content_type.type == "text"
+      assert part_4.content_type.subtype == "richtext"
+
+      # Part 5: message/rfc822 with embedded message
+      part_5 = Enum.at(message.parts, 4)
+      assert part_5.content_type.type == "message"
+      assert part_5.content_type.subtype == "rfc822"
+      assert is_list(part_5.parts)
+      assert length(part_5.parts) == 1
+
+      # The embedded message
+      embedded = Enum.at(part_5.parts, 0)
+      assert embedded.headers["subject"] == "Part 5 of the outer message is itself an RFC822 message!"
+      assert embedded.content_type.type == "text"
+      assert embedded.body =~ "Part 5 of the outer message"
+    end
+
+    test "deeply nested multipart is correctly parsed" do
+      # multi-nested2.msg has multiple levels of nesting
+      msg_path = Path.join(@mime4j_dir, "multi-nested2.msg")
+      raw = File.read!(msg_path)
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+
+      # Top level is multipart/mixed
+      assert message.content_type.type == "multipart"
+      assert is_list(message.parts)
+
+      # Find the nested multipart part and verify it has sub-parts
+      nested_parts = Enum.filter(message.parts, fn part ->
+        part.content_type.type == "multipart"
+      end)
+
+      assert length(nested_parts) > 0, "Should have at least one nested multipart"
+
+      for nested <- nested_parts do
+        assert is_list(nested.parts), "Nested multipart should have parts list"
+      end
+    end
+
+    test "triple-nested multipart structure" do
+      # multi-nested3.msg has 3 levels of nesting
+      msg_path = Path.join(@mime4j_dir, "multi-nested3.msg")
+      raw = File.read!(msg_path)
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+
+      # Top level is multipart
+      assert message.content_type.type == "multipart"
+      assert is_list(message.parts)
+
+      # Count total depth of nesting
+      max_depth = count_nesting_depth(message)
+      assert max_depth >= 3, "Expected at least 3 levels of nesting, got #{max_depth}"
+    end
+  end
+
+  defp count_nesting_depth(message, current_depth \\ 1) do
+    if is_list(message.parts) and length(message.parts) > 0 do
+      child_depths = Enum.map(message.parts, fn part ->
+        count_nesting_depth(part, current_depth + 1)
+      end)
+      Enum.max(child_depths)
+    else
+      current_depth
+    end
+  end
+
   # Helper to validate parsed message against MIME-tools expected output
   defp validate_against_expected(message, expected, test_name) do
     msg_expected = expected["Msg"]
