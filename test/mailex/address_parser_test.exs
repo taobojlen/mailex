@@ -218,4 +218,73 @@ defmodule Mailex.AddressParserTest do
       assert result.local_part == local
     end
   end
+
+  describe "RFC 6532 internationalized addresses (EAI)" do
+    test "parses UTF-8 in local-part" do
+      # Japanese characters in local-part
+      assert {:ok, result} = AddressParser.parse_addr_spec("用户@example.com")
+      assert result.local_part == "用户"
+      assert result.domain == "example.com"
+    end
+
+    test "parses UTF-8 in domain" do
+      # Chinese domain name
+      assert {:ok, result} = AddressParser.parse_addr_spec("user@例え.jp")
+      assert result.local_part == "user"
+      assert result.domain == "例え.jp"
+    end
+
+    test "parses UTF-8 in both local-part and domain" do
+      assert {:ok, result} = AddressParser.parse_addr_spec("用户@例え.jp")
+      assert result.local_part == "用户"
+      assert result.domain == "例え.jp"
+    end
+
+    test "parses mailbox with UTF-8 address" do
+      assert {:ok, result} = AddressParser.parse_mailbox("日本語@example.com")
+      assert result.type == :mailbox
+      assert result.address == "日本語@example.com"
+    end
+
+    test "parses mailbox with UTF-8 display-name and address" do
+      assert {:ok, result} = AddressParser.parse_mailbox("田中太郎 <tanaka@例え.jp>")
+      assert result.type == :mailbox
+      assert result.name == "田中太郎"
+      assert result.address == "tanaka@例え.jp"
+    end
+
+    test "parses address list with mixed UTF-8 and ASCII" do
+      input = "alice@example.com, 田中 <tanaka@例え.jp>, bob@test.com"
+      assert {:ok, addrs} = AddressParser.parse_address_list(input)
+      assert length(addrs) == 3
+      assert Enum.at(addrs, 1).name == "田中"
+    end
+
+    test "parses German umlauts in local-part" do
+      assert {:ok, result} = AddressParser.parse_addr_spec("müller@example.com")
+      assert result.local_part == "müller"
+    end
+
+    test "parses Cyrillic characters in local-part" do
+      assert {:ok, result} = AddressParser.parse_addr_spec("пользователь@example.com")
+      assert result.local_part == "пользователь"
+    end
+
+    test "parses Arabic characters in local-part" do
+      assert {:ok, result} = AddressParser.parse_addr_spec("مستخدم@example.com")
+      assert result.local_part == "مستخدم"
+    end
+
+    test "parses emoji in local-part" do
+      # Some systems allow emoji in email addresses
+      assert {:ok, result} = AddressParser.parse_addr_spec("test😀@example.com")
+      assert result.local_part == "test😀"
+    end
+
+    test "parses group with UTF-8 display-names" do
+      assert {:ok, result} = AddressParser.parse_group("チーム: member@example.com;")
+      assert result.type == :group
+      assert result.name == "チーム"
+    end
+  end
 end

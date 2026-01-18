@@ -210,7 +210,7 @@ Implemented:
 
 ### 7.2 Internationalized email addresses not supported
 
-**Status:** Deferred (requires address parsing)
+**Status:** ✅ Implemented
 
 **Problem:** Non-ASCII local-parts and domains (EAI - Email Address Internationalization) cannot be parsed because address parsing doesn't exist.
 
@@ -220,10 +220,12 @@ Implemented:
 - RFC 5890/5891 — IDNA (Internationalized Domain Names)
 
 **Implementation:**
-Deferred until address parsing is implemented:
-- When implementing `addr-spec`, permit UTF-8 in local-part and domain
-- Consider returning both original UTF-8 address and ASCII-compatible (punycode) domain form
-- Note: Raw UTF-8 in header values (including address display names) is already supported via 7.1
+Implemented:
+- Extended `AddressParser` to support RFC 6532 internationalized email addresses
+- `atext` combinator now accepts both ASCII characters and UTF-8 non-ASCII (codepoints > 127)
+- `codepoints_to_string/1` helper converts UTF-8 codepoints to proper UTF-8 binary strings
+- UTF-8 supported in local-part, domain, and display-name
+- Tests cover Japanese, Chinese, German umlauts, Cyrillic, Arabic, and emoji characters
 
 ---
 
@@ -394,7 +396,7 @@ Suggested order based on impact and dependencies:
 11. ✅ **10.1** ~~Fix RFC 2047 charset conversion~~
 12. ✅ **10.2** ~~Apply RFC 2047 to more headers~~
 13. ✅ **7.1** ~~Full RFC 6532 UTF-8 header support~~
-14. ⏸️ **7.2** Internationalized address support (deferred: requires address parsing)
+14. ✅ **7.2** ~~Internationalized address support~~
 
 ### Phase 6: Robustness
 15. **4.1** Add obsolete syntax tolerance

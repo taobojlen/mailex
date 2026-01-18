@@ -11,6 +11,11 @@ defmodule Mailex.AddressParser do
   Supports obsolete syntax (RFC 5322 §4.4):
   - obs-phrase (periods in display names)
   - obs-local-part (CFWS between parts)
+
+  Supports RFC 6532 internationalized email addresses (EAI):
+  - UTF-8 characters in local-part
+  - UTF-8 characters in domain (internationalized domain names)
+  - UTF-8 characters in display-name
   """
 
   import NimbleParsec
@@ -58,12 +63,20 @@ defmodule Mailex.AddressParser do
   cfws = times(choice([fws, comment]), min: 1) |> ignore()
   optional_cfws = optional(cfws)
 
-  atext = ascii_char([?a..?z, ?A..?Z, ?0..?9, ?!, ?#, ?$, ?%, ?&, ?', ?*, ?+, ?-, ?/, ?=, ??, ?^, ?_, ?`, ?{, ?|, ?}, ?~])
+  # RFC 5322 atext: printable ASCII characters excluding specials
+  ascii_atext = ascii_char([?a..?z, ?A..?Z, ?0..?9, ?!, ?#, ?$, ?%, ?&, ?', ?*, ?+, ?-, ?/, ?=, ??, ?^, ?_, ?`, ?{, ?|, ?}, ?~])
+
+  # RFC 6532 UTF8-non-ascii: any UTF-8 character outside ASCII range (codepoints > 127)
+  # This enables internationalized email addresses (EAI)
+  utf8_non_ascii = utf8_char([not: 0..127])
+
+  # Combined atext that supports both ASCII and UTF-8 (RFC 5322 + RFC 6532)
+  atext = choice([ascii_atext, utf8_non_ascii])
 
   dot_atom_text =
     times(atext, min: 1)
     |> repeat(string(".") |> concat(times(atext, min: 1)))
-    |> reduce({:erlang, :list_to_binary, []})
+    |> reduce({__MODULE__, :codepoints_to_string, []})
 
   qtext = ascii_char([0x21, 0x23..0x5B, 0x5D..0x7E])
 
@@ -307,6 +320,18 @@ defmodule Mailex.AddressParser do
   # ===========================================================================
   # Helper functions
   # ===========================================================================
+
+  @doc false
+  # Converts a list of Unicode codepoints and strings to a UTF-8 binary.
+  # This handles the output from utf8_char which returns codepoints as integers.
+  def codepoints_to_string(parts) do
+    parts
+    |> Enum.map(fn
+      cp when is_integer(cp) -> <<cp::utf8>>
+      str when is_binary(str) -> str
+    end)
+    |> IO.iodata_to_binary()
+  end
 
   defp extract_local_domain(args) do
     local = find_local(args)
