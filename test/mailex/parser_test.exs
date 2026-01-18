@@ -196,6 +196,93 @@ defmodule Mailex.ParserTest do
     end
   end
 
+  describe "RFC 5322 §3.2.4 quoted-string parsing" do
+    test "handles empty quoted-string" do
+      raw = """
+      From: sender@example.com
+      Content-Type: text/plain; name=""
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_type.params["name"] == ""
+    end
+
+    test "handles escaped tab in quoted-string" do
+      # RFC 5322: quoted-pair = "\" (VCHAR / WSP), WSP includes tab
+      raw = """
+      From: sender@example.com
+      Content-Type: text/plain; name="file\\\tname.txt"
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_type.params["name"] == "file\tname.txt"
+    end
+
+    test "handles escaped space in quoted-string" do
+      # RFC 5322: quoted-pair = "\" (VCHAR / WSP), WSP includes space
+      raw = """
+      From: sender@example.com
+      Content-Type: text/plain; name="file\\ name.txt"
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_type.params["name"] == "file name.txt"
+    end
+
+    test "handles multiple escapes in sequence" do
+      raw = """
+      From: sender@example.com
+      Content-Type: text/plain; name="a\\"b\\\\c\\"d"
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_type.params["name"] == "a\"b\\c\"d"
+    end
+
+    test "handles FWS (folded whitespace) within quoted-string" do
+      # RFC 5322: quoted-string = DQUOTE *([FWS] qcontent) [FWS] DQUOTE
+      # FWS within quoted-string should be preserved as single space
+      raw = """
+      From: sender@example.com
+      Content-Type: text/plain; name="long
+       filename.txt"
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_type.params["name"] == "long filename.txt"
+    end
+
+    test "preserves literal tab inside quoted-string (unescaped)" do
+      raw = "From: sender@example.com\r\nContent-Type: text/plain; name=\"file\tname.txt\"\r\n\r\nBody."
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_type.params["name"] == "file\tname.txt"
+    end
+
+    test "handles escaped printable ASCII in quoted-string" do
+      # Any VCHAR can be escaped, result is the character itself
+      raw = """
+      From: sender@example.com
+      Content-Type: text/plain; name="\\a\\b\\c"
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_type.params["name"] == "abc"
+    end
+  end
+
   describe "multipart handling" do
     test "extracts parts from multipart message" do
       raw = File.read!(Path.join(@fixtures_dir, "multi-simple.msg"))

@@ -156,7 +156,7 @@ Implemented:
 
 ### 6.1 Quoted-string escapes not properly handled
 
-**Status:** Partially Implemented (incomplete)
+**Status:** ✅ Implemented
 
 **Problem:** MIME parameters and RFC 5322 productions depend on `quoted-string` with `quoted-pair` handling. The current `unquote_value/1` likely doesn't handle:
 - Backslash escapes: `\"` → `"`, `\\` → `\`
@@ -170,9 +170,15 @@ Implemented:
 - `qcontent = qtext / quoted-pair`
 
 **Implementation:**
-- Properly parse quoted-string with escape handling
-- Reuse for MIME params (`charset="utf-8"`) and display names (`"Last, First" <a@b>`)
-- Handle folding whitespace within quoted-strings
+Implemented:
+- `unquote_value/1` properly handles backslash escapes using regex replacement
+- `unescape_quoted_string/1` converts `\X` → `X` for any character X (VCHAR or WSP)
+- Header unfolding normalizes FWS (CRLF+WSP) before quoted-string processing
+- Used for MIME parameters in Content-Type and Content-Disposition headers
+- Handles UTF-8 characters correctly (regex `.` matches codepoints, not bytes)
+
+Pending (depends on address parsing):
+- Reuse for display names in address headers (`"Last, First" <a@b>`)
 
 ---
 
@@ -350,8 +356,8 @@ Suggested order based on impact and dependencies:
 1. **1.2** Fix header unfolding to not trim whitespace
 
 ### Phase 2: Lexical Primitives (Enables Everything Else)
-2. **6.1** Implement proper `quoted-string` parsing with escapes
-3. **5.1** Implement CFWS/comment handling
+2. ✅ **6.1** ~~Implement proper `quoted-string` parsing with escapes~~
+3. ✅ **5.1** ~~Implement CFWS/comment handling~~
 4. Implement `token` parser per RFC 2045
 
 ### Phase 3: MIME Parsing Rebuild
