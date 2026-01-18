@@ -355,10 +355,10 @@ Suggested order based on impact and dependencies:
 ### Phase 1: Foundation (High Impact)
 1. **1.2** Fix header unfolding to not trim whitespace
 
-### Phase 2: Lexical Primitives (Enables Everything Else)
+### Phase 2: Lexical Primitives (Enables Everything Else) ✅
 2. ✅ **6.1** ~~Implement proper `quoted-string` parsing with escapes~~
 3. ✅ **5.1** ~~Implement CFWS/comment handling~~
-4. Implement `token` parser per RFC 2045
+4. ✅ **Phase 2 complete** ~~Implement `token` parser per RFC 2045~~
 
 ### Phase 3: MIME Parsing Rebuild
 5. **3.1** Rebuild Content-Type parser using primitives

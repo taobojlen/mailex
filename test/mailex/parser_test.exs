@@ -1210,6 +1210,59 @@ defmodule Mailex.ParserTest do
     end
   end
 
+  describe "RFC 2045 §5.1 token parser" do
+    # token := 1*<any (US-ASCII) CHAR except SPACE, CTLs, or tspecials>
+    # tspecials := "(" / ")" / "<" / ">" / "@" / "," / ";" / ":" / "\" / <"> / "/" / "[" / "]" / "?" / "="
+
+    test "parse_token parses simple alphanumeric token" do
+      assert {:ok, ["text"], "", _, _, _} = Mailex.Parser.parse_token("text")
+    end
+
+    test "parse_token parses token with allowed special characters" do
+      # Characters like ! # $ % & ' * + - . ^ _ ` { | } ~ are allowed
+      assert {:ok, ["text-plain"], "", _, _, _} = Mailex.Parser.parse_token("text-plain")
+      assert {:ok, ["file.txt"], "", _, _, _} = Mailex.Parser.parse_token("file.txt")
+      assert {:ok, ["x_y"], "", _, _, _} = Mailex.Parser.parse_token("x_y")
+    end
+
+    test "parse_token stops at tspecials" do
+      # Token should stop before tspecials characters
+      assert {:ok, ["text"], "/plain", _, _, _} = Mailex.Parser.parse_token("text/plain")
+      assert {:ok, ["charset"], "=utf-8", _, _, _} = Mailex.Parser.parse_token("charset=utf-8")
+      assert {:ok, ["value"], ";next", _, _, _} = Mailex.Parser.parse_token("value;next")
+    end
+
+    test "parse_token stops at space" do
+      assert {:ok, ["hello"], " world", _, _, _} = Mailex.Parser.parse_token("hello world")
+    end
+
+    test "parse_token stops at control characters" do
+      assert {:ok, ["hello"], "\tworld", _, _, _} = Mailex.Parser.parse_token("hello\tworld")
+    end
+
+    test "parse_token fails on empty input" do
+      assert {:error, _, "", _, _, _} = Mailex.Parser.parse_token("")
+    end
+
+    test "parse_token fails when starting with tspecial" do
+      assert {:error, _, "/plain", _, _, _} = Mailex.Parser.parse_token("/plain")
+      assert {:error, _, "=value", _, _, _} = Mailex.Parser.parse_token("=value")
+    end
+
+    test "parse_token parses MIME type components" do
+      # Real-world usage: type and subtype in Content-Type
+      assert {:ok, ["multipart"], "", _, _, _} = Mailex.Parser.parse_token("multipart")
+      assert {:ok, ["application"], "", _, _, _} = Mailex.Parser.parse_token("application")
+      assert {:ok, ["octet-stream"], "", _, _, _} = Mailex.Parser.parse_token("octet-stream")
+    end
+
+    test "parse_token parses parameter attribute names" do
+      assert {:ok, ["boundary"], "", _, _, _} = Mailex.Parser.parse_token("boundary")
+      assert {:ok, ["charset"], "", _, _, _} = Mailex.Parser.parse_token("charset")
+      assert {:ok, ["filename"], "", _, _, _} = Mailex.Parser.parse_token("filename")
+    end
+  end
+
   describe "RFC 5322 §4 obsolete syntax (obs-*)" do
     test "allows obs-text bytes (128-255) in header field bodies" do
       # RFC 5322 §4.1: obs-text = *LF *CR *(obs-char / LF / CR)

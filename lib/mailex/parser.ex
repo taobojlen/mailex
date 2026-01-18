@@ -48,6 +48,37 @@ defmodule Mailex.Parser do
 
   defparsec :parse_comment, comment
 
+  # RFC 2045 §5.1 token parser
+  # token := 1*<any (US-ASCII) CHAR except SPACE, CTLs, or tspecials>
+  # tspecials := "(" / ")" / "<" / ">" / "@" / "," / ";" / ":" / "\" / <"> / "/" / "[" / "]" / "?" / "="
+  # CTLs are 0-31 and 127
+  # Valid token chars: 33-126 (printable ASCII) excluding tspecials and space (32)
+  # tspecials bytes: 40,41,60,62,64,44,59,58,92,34,47,91,93,63,61
+  #   ( ) < > @ , ; : \ " / [ ] ? =
+  #   40 41 60 62 64 44 59 58 92 34 47 91 93 63 61
+  token =
+    ascii_string(
+      [
+        # ! to ' (33-39), excluding none
+        ?!..?',
+        # * to + (42-43)
+        ?*..?+,
+        # - to . (45-46) - skip comma (44)
+        ?-..?.,
+        # 0-9 (48-57) - skip / (47)
+        ?0..?9,
+        # A-Z (65-90) - skip : ; < = > ? @ (58-64)
+        ?A..?Z,
+        # ^ to z (94-122) - skip [ \ ] (91-93)
+        ?^..?z,
+        # { | } ~ (123-126)
+        ?{..?~
+      ],
+      min: 1
+    )
+
+  defparsec :parse_token, token
+
   # Field name: any printable ASCII except ":"
   # RFC 5322 Section 2.2: printable US-ASCII chars (0x21-0x7E) except colon (0x3A)
   field_name =
