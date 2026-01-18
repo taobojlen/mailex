@@ -105,7 +105,7 @@ Implement a real `content-type` value parser with NimbleParsec:
 
 ### 4.1 No explicit support for obs-* productions
 
-**Status:** Not Implemented
+**Status:** Partially Implemented
 
 **Problem:** RFC 5322 §4 defines obsolete syntax forms that still appear in real email. Current parser partially supports header folding but not:
 - `obs-phrase` (period allowed in display names)
@@ -120,10 +120,14 @@ Implement a real `content-type` value parser with NimbleParsec:
 - RFC 5322 §4.3 — Obsolete Date and Time
 
 **Implementation:**
-- Allow `obs-text` bytes in unstructured fields (128-255)
-- Accept periods in display-name phrases (`obs-phrase`)
-- Accept route-addr by parsing and ignoring the route portion
-- Implement obsolete date parsing with 2-digit year rules and named timezones
+Implemented:
+- `obs-text` bytes (128-255) in header field bodies — parser already accepts these due to NimbleParsec's handling of byte ranges with exclusions
+
+Pending (depends on other features):
+- `obs-phrase` — requires address parsing
+- `obs-local-part`, `obs-domain` — requires address parsing
+- `obs-route` — requires address parsing
+- `obs-date` — requires date parsing
 
 ---
 

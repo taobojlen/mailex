@@ -1069,4 +1069,46 @@ defmodule Mailex.ParserTest do
       assert Mailex.Parser.strip_comments("text (with \\( escaped) /plain") == "text  /plain"
     end
   end
+
+  describe "RFC 5322 §4 obsolete syntax (obs-*)" do
+    test "allows obs-text bytes (128-255) in header field bodies" do
+      # RFC 5322 §4.1: obs-text = *LF *CR *(obs-char / LF / CR)
+      # obs-char = %d0-9 / %d11 / %d12 / %d14-127  (but in practice bytes 128-255 appear)
+      # Real-world emails often have high bytes in headers from legacy systems
+      # \xE9 is 'é' in ISO-8859-1 (Latin-1)
+      raw = "From: sender@example.com\nSubject: Caf\xE9 Menu\n\nBody."
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      # The bytes are preserved as-is (not converted to UTF-8 here, that's a separate concern)
+      assert message.headers["subject"] == <<"Caf", 0xE9, " Menu">>
+    end
+
+    test "allows obs-text in multiple headers" do
+      # Multiple headers with high bytes (ISO-8859-1)
+      # \xDF = 'ß', \xFC = 'ü' in Latin-1
+      raw = "From: sender@example.com\nSubject: Stra\xDFe\nX-Custom: M\xFCnchen\n\nBody."
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.headers["subject"] == <<"Stra", 0xDF, "e">>
+      assert message.headers["x-custom"] == <<"M", 0xFC, "nchen">>
+    end
+
+    test "allows obs-text in folded headers" do
+      # High bytes in continuation lines
+      raw = "From: sender@example.com\nSubject: Hello from\n Caf\xE9\n\nBody."
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.headers["subject"] == <<"Hello from Caf", 0xE9>>
+    end
+
+    test "preserves obs-text bytes through parsing" do
+      # Ensure high bytes aren't corrupted - full range test
+      raw = "From: sender@example.com\nX-Binary: \x80\x81\xFE\xFF\n\nBody."
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      # The bytes should be preserved exactly
+      header_value = message.headers["x-binary"]
+      assert header_value == <<0x80, 0x81, 0xFE, 0xFF>>
+    end
+  end
 end
