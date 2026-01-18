@@ -76,6 +76,8 @@ defmodule Mailex.Parser do
       {:ok, [message], rest, _, _, _} ->
         # rest is the body - don't trim here to avoid corrupting binary content
         message = process_body(message, rest)
+        # Extract filename from Content-Disposition if present
+        message = extract_filename(message)
         {:ok, message}
 
       {:error, reason, _, _, _, _} ->
@@ -170,18 +172,119 @@ defmodule Mailex.Parser do
   end
 
   defp parse_params(parts) do
-    parts
-    |> Enum.map(&String.trim/1)
-    |> Enum.reduce(%{}, fn part, acc ->
-      case String.split(part, "=", parts: 2) do
-        [key, value] ->
-          key = String.downcase(String.trim(key))
-          value = value |> String.trim() |> unquote_value()
-          Map.put(acc, key, value)
-        _ ->
-          acc
-      end
-    end)
+    raw_params =
+      parts
+      |> Enum.map(&String.trim/1)
+      |> Enum.reduce(%{}, fn part, acc ->
+        case String.split(part, "=", parts: 2) do
+          [key, value] ->
+            key = String.downcase(String.trim(key))
+            value = value |> String.trim() |> unquote_value()
+            Map.put(acc, key, value)
+          _ ->
+            acc
+        end
+      end)
+
+    # Reassemble RFC 2231 continuation parameters
+    reassemble_rfc2231_params(raw_params)
+  end
+
+  # RFC 2231 parameter continuation reassembly and extended value decoding
+  # Handles patterns like: filename*0="part1"; filename*1="part2"
+  # And extended values like: filename*=UTF-8''Hello%20World
+  defp reassemble_rfc2231_params(params) do
+    # Separate params into: continuations (*0, *1, etc.), extended (*), and regular
+    {continuations, rest} =
+      Enum.split_with(params, fn {key, _value} ->
+        Regex.match?(~r/\*\d+\*?$/, key)
+      end)
+
+    {extended, regular} =
+      Enum.split_with(rest, fn {key, _value} ->
+        # Match keys ending with just * (not *0, *1, etc.)
+        String.ends_with?(key, "*") and not Regex.match?(~r/\*\d+\*?$/, key)
+      end)
+
+    # Process extended parameters (filename*=charset'lang'value)
+    decoded_extended =
+      Enum.map(extended, fn {key, value} ->
+        base_name = String.trim_trailing(key, "*")
+        decoded_value = decode_rfc2231_extended_value(value)
+        {base_name, decoded_value}
+      end)
+      |> Map.new()
+
+    # Group continuations by base name
+    grouped =
+      Enum.group_by(continuations, fn {key, _value} ->
+        # Extract base name (e.g., "filename" from "filename*0" or "filename*0*")
+        key |> String.replace(~r/\*\d+\*?$/, "")
+      end)
+
+    # Reassemble each group
+    reassembled =
+      Enum.map(grouped, fn {base_name, parts} ->
+        # Sort by numeric index and concatenate values
+        sorted_values =
+          parts
+          |> Enum.map(fn {key, value} ->
+            # Extract index from key (e.g., "0" from "filename*0")
+            index = key |> String.replace(~r/^.*\*(\d+)\*?$/, "\\1") |> String.to_integer()
+            # Check if this segment is encoded (ends with *)
+            is_encoded = String.ends_with?(key, "*")
+            {index, value, is_encoded}
+          end)
+          |> Enum.sort_by(fn {index, _, _} -> index end)
+          |> Enum.map(fn {_, value, is_encoded} ->
+            if is_encoded do
+              decode_rfc2231_extended_value(value)
+            else
+              value
+            end
+          end)
+
+        {base_name, Enum.join(sorted_values, "")}
+      end)
+      |> Map.new()
+
+    # Merge: regular < extended < reassembled (later takes precedence)
+    Map.new(regular)
+    |> Map.merge(decoded_extended)
+    |> Map.merge(reassembled)
+  end
+
+  # Decode RFC 2231 extended value: charset'language'percent-encoded-value
+  defp decode_rfc2231_extended_value(value) do
+    case String.split(value, "'", parts: 3) do
+      [charset, _language, encoded_value] ->
+        # For non-UTF-8 charsets, we need to decode percent-encoded bytes first,
+        # then convert from the source charset to UTF-8
+        decoded_bytes = percent_decode_to_binary(encoded_value)
+        convert_charset(decoded_bytes, charset)
+
+      _ ->
+        # If not in charset'lang'value format, just percent-decode as UTF-8
+        URI.decode(value)
+    end
+  end
+
+  # Percent-decode a string to raw binary (without assuming UTF-8)
+  defp percent_decode_to_binary(string) do
+    string
+    |> String.to_charlist()
+    |> decode_percent_chars([])
+    |> Enum.reverse()
+    |> :erlang.list_to_binary()
+  end
+
+  defp decode_percent_chars([], acc), do: acc
+  defp decode_percent_chars([?%, h1, h2 | rest], acc) do
+    byte = List.to_integer([h1, h2], 16)
+    decode_percent_chars(rest, [byte | acc])
+  end
+  defp decode_percent_chars([char | rest], acc) do
+    decode_percent_chars(rest, [char | acc])
   end
 
   defp unquote_value(value) do

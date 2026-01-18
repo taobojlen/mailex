@@ -610,4 +610,80 @@ defmodule Mailex.ParserTest do
         "#{context}: expected filename #{filename}"
     end
   end
+
+  describe "RFC 2231 parameter continuations" do
+    test "reassembles simple continuation parameters (filename*0, filename*1)" do
+      raw = """
+      Content-Type: application/octet-stream
+      Content-Disposition: attachment;
+       filename*0="very_long_";
+       filename*1="filename_";
+       filename*2="here.txt"
+
+      body
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.filename == "very_long_filename_here.txt"
+    end
+
+    test "reassembles out-of-order continuation parameters" do
+      raw = """
+      Content-Type: application/octet-stream
+      Content-Disposition: attachment;
+       filename*2="here.txt";
+       filename*0="very_long_";
+       filename*1="filename_"
+
+      body
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.filename == "very_long_filename_here.txt"
+    end
+
+    test "decodes RFC 2231 extended value with charset (filename*=UTF-8''...)" do
+      raw = """
+      Content-Type: application/octet-stream
+      Content-Disposition: attachment;
+       filename*=UTF-8''%48%65%6C%6C%6F%20%57%6F%72%6C%64.txt
+
+      body
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.filename == "Hello World.txt"
+    end
+
+    test "reassembles encoded continuations (filename*0*=charset'lang'..., filename*1*=...)" do
+      # RFC 2231 Section 4.1 example: combined charset/language and continuations
+      raw = """
+      Content-Type: application/octet-stream
+      Content-Disposition: attachment;
+       filename*0*=UTF-8''This%20is%20;
+       filename*1*=a%20long%20;
+       filename*2="filename.txt"
+
+      body
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.filename == "This is a long filename.txt"
+    end
+
+    test "decodes ISO-8859-1 extended value" do
+      # filename*=ISO-8859-1''%61%74%74%61%63%68%6D%65%6E%74%2E%E4%F6%FC
+      # Decodes to: attachment.äöü (German umlauts in ISO-8859-1)
+      raw = """
+      Content-Type: application/octet-stream
+      Content-Disposition: attachment;
+       filename*=ISO-8859-1''%61%74%74%61%63%68%6D%65%6E%74%2E%E4%F6%FC
+
+      body
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.filename == "attachment.äöü"
+    end
+  end
 end
