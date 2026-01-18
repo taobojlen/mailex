@@ -13,6 +13,9 @@ defmodule Mailex.Message do
     `nil` for multipart/message containers where content is in `:parts`.
   - `:parts` - List of `%Mailex.Message{}` structs for multipart messages, `nil` otherwise.
   - `:filename` - Extracted filename from Content-Disposition or Content-Type name parameter.
+  - `:message_id` - Extracted Message-ID (without angle brackets), `nil` if not present.
+  - `:in_reply_to` - List of message IDs from In-Reply-To header, `nil` if not present.
+  - `:references` - List of message IDs from References header (for threading), `nil` if not present.
   """
 
   @type t :: %__MODULE__{
@@ -21,8 +24,11 @@ defmodule Mailex.Message do
           encoding: String.t(),
           body: binary() | nil,
           parts: [t()] | nil,
-          filename: String.t() | nil
+          filename: String.t() | nil,
+          message_id: String.t() | nil,
+          in_reply_to: [String.t()] | nil,
+          references: [String.t()] | nil
         }
 
-  defstruct [:headers, :content_type, :encoding, :body, :parts, :filename]
+  defstruct [:headers, :content_type, :encoding, :body, :parts, :filename, :message_id, :in_reply_to, :references]
 end

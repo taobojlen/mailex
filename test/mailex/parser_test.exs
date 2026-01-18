@@ -728,4 +728,127 @@ defmodule Mailex.ParserTest do
       assert message.filename == "attachment.äöü"
     end
   end
+
+  describe "Message-ID parsing (RFC 5322 §3.6.4)" do
+    test "extracts message_id from Message-ID header" do
+      raw = """
+      From: sender@example.com
+      Message-ID: <abc123@example.com>
+      Subject: Test
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.message_id == "abc123@example.com"
+    end
+
+    test "extracts message_id with complex id-left and id-right" do
+      raw = """
+      From: sender@example.com
+      Message-ID: <CAFn=+P.Z8q1xN_ksO2=@mail.gmail.com>
+      Subject: Test
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.message_id == "CAFn=+P.Z8q1xN_ksO2=@mail.gmail.com"
+    end
+
+    test "extracts in_reply_to from In-Reply-To header (single msg-id)" do
+      raw = """
+      From: sender@example.com
+      In-Reply-To: <parent123@example.com>
+      Subject: Re: Test
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.in_reply_to == ["parent123@example.com"]
+    end
+
+    test "extracts in_reply_to from In-Reply-To header (multiple msg-ids)" do
+      raw = """
+      From: sender@example.com
+      In-Reply-To: <parent1@example.com> <parent2@other.net>
+      Subject: Re: Test
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.in_reply_to == ["parent1@example.com", "parent2@other.net"]
+    end
+
+    test "extracts references from References header" do
+      raw = """
+      From: sender@example.com
+      References: <root@example.com> <reply1@example.com> <reply2@example.com>
+      Subject: Re: Re: Test
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.references == ["root@example.com", "reply1@example.com", "reply2@example.com"]
+    end
+
+    test "handles message-id with whitespace around angle brackets" do
+      raw = """
+      From: sender@example.com
+      Message-ID:   < abc@example.com >
+      Subject: Test
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.message_id == "abc@example.com"
+    end
+
+    test "handles references across folded header lines" do
+      raw = """
+      From: sender@example.com
+      References: <root@example.com>
+       <reply1@example.com>
+       <reply2@example.com>
+      Subject: Re: Test
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.references == ["root@example.com", "reply1@example.com", "reply2@example.com"]
+    end
+
+    test "returns nil for missing message-id headers" do
+      raw = """
+      From: sender@example.com
+      Subject: Test
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.message_id == nil
+      assert message.in_reply_to == nil
+      assert message.references == nil
+    end
+
+    test "handles empty angle brackets gracefully" do
+      raw = """
+      From: sender@example.com
+      Message-ID: <>
+      Subject: Test
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      # Empty message-id should be nil or empty string
+      assert message.message_id == nil or message.message_id == ""
+    end
+  end
 end

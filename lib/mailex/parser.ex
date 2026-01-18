@@ -133,7 +133,10 @@ defmodule Mailex.Parser do
       encoding: encoding,
       body: nil,
       parts: nil,
-      filename: nil
+      filename: nil,
+      message_id: extract_message_id(headers["message-id"]),
+      in_reply_to: extract_msg_id_list(headers["in-reply-to"]),
+      references: extract_msg_id_list(headers["references"])
     }
 
     {rest, [message], context}
@@ -560,6 +563,52 @@ defmodule Mailex.Parser do
       {byte, ""} = Integer.parse(hex, 16)
       <<byte>>
     end)
+  end
+
+  # RFC 5322 §3.6.4 Message Identification Fields
+  # Extract a single message-id from Message-ID header
+  # msg-id = [CFWS] "<" id-left "@" id-right ">" [CFWS]
+  defp extract_message_id(nil), do: nil
+  defp extract_message_id(value) when is_list(value), do: extract_message_id(List.first(value))
+  defp extract_message_id(value) do
+    case extract_msg_ids(value) do
+      [id | _] -> id
+      [] -> nil
+    end
+  end
+
+  # Extract a list of message-ids from In-Reply-To or References headers
+  defp extract_msg_id_list(nil), do: nil
+  defp extract_msg_id_list(value) when is_list(value) do
+    value
+    |> Enum.flat_map(&extract_msg_ids/1)
+    |> case do
+      [] -> nil
+      ids -> ids
+    end
+  end
+  defp extract_msg_id_list(value) do
+    case extract_msg_ids(value) do
+      [] -> nil
+      ids -> ids
+    end
+  end
+
+  # Extract all msg-id tokens from a header value
+  # Matches: < id-left @ id-right > with optional whitespace
+  defp extract_msg_ids(str) do
+    # Pattern: < followed by non-angle-bracket content, then >
+    # Allows whitespace inside angle brackets (lenient parsing)
+    ~r/<\s*([^<>]+?)\s*>/
+    |> Regex.scan(str)
+    |> Enum.map(fn [_, content] -> String.trim(content) end)
+    |> Enum.filter(&valid_msg_id?/1)
+  end
+
+  # A valid msg-id should contain @ (id-left @ id-right)
+  # Empty or malformed ids are rejected
+  defp valid_msg_id?(id) do
+    id != "" and String.contains?(id, "@")
   end
 
   # RFC 2047 encoded-word decoding
