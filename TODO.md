@@ -113,14 +113,17 @@ Run tests: `mix test`
 
 ## Test Improvements
 
-- [ ] **Add validation for skipped headers**
-  
+- [x] **Add validation for skipped headers**
+
   The Mime4J conformance tests skip comparing these headers because they can have
   multiple values and the XML only shows the first:
   - `received`, `x-filter`, `comments`, `keywords`
-  
+
   Should add separate tests that verify multi-value headers are stored as lists
   and contain all expected values.
+
+  **Resolution:** Added "multi-value headers" test suite in parser_test.exs that
+  verifies Received, Comments, and Keywords headers are correctly stored as lists.
 
 - [ ] **Add body content validation**
   

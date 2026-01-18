@@ -267,6 +267,92 @@ defmodule Mailex.ParserTest do
     end
   end
 
+  describe "multi-value headers" do
+    test "multiple Received headers are stored as a list" do
+      raw = """
+      From: sender@example.com
+      Received: from server1.example.com by mail.example.com
+      Received: from server2.example.com by server1.example.com
+      Received: from origin.example.com by server2.example.com
+      Subject: Test
+
+      Body
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+
+      received = message.headers["received"]
+      assert is_list(received), "Multiple Received headers should be stored as a list"
+      assert length(received) == 3
+      assert Enum.at(received, 0) =~ "server1.example.com"
+      assert Enum.at(received, 1) =~ "server2.example.com"
+      assert Enum.at(received, 2) =~ "origin.example.com"
+    end
+
+    test "single header is stored as a string, not a list" do
+      raw = """
+      From: sender@example.com
+      Received: from server.example.com by mail.example.com
+      Subject: Test
+
+      Body
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+
+      received = message.headers["received"]
+      assert is_binary(received), "Single Received header should be stored as a string"
+      assert received =~ "server.example.com"
+    end
+
+    test "multiple headers with same name from real message" do
+      # Uses the mime4j example.msg which has multiple Received headers
+      raw = File.read!(Path.join([__DIR__, "..", "fixtures", "mime4j-testmsgs", "example.msg"]))
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+
+      received = message.headers["received"]
+      assert is_list(received), "Multiple Received headers should be stored as a list"
+      # The example.msg file has many Received headers (13)
+      assert length(received) >= 10
+    end
+
+    test "multiple Comments headers are stored as a list" do
+      raw = """
+      From: sender@example.com
+      Comments: First comment
+      Comments: Second comment
+      Subject: Test
+
+      Body
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+
+      comments = message.headers["comments"]
+      assert is_list(comments)
+      assert length(comments) == 2
+      assert "First comment" in comments
+      assert "Second comment" in comments
+    end
+
+    test "multiple Keywords headers are stored as a list" do
+      raw = """
+      From: sender@example.com
+      Keywords: keyword1
+      Keywords: keyword2, keyword3
+      Subject: Test
+
+      Body
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+
+      keywords = message.headers["keywords"]
+      assert is_list(keywords)
+      assert length(keywords) == 2
+    end
+  end
+
   # Helper to validate parsed message against MIME-tools expected output
   defp validate_against_expected(message, expected, test_name) do
     msg_expected = expected["Msg"]
