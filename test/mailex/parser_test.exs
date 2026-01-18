@@ -128,6 +128,72 @@ defmodule Mailex.ParserTest do
       assert message.content_type.subtype == "mixed"
       assert message.content_type.params["boundary"] == "----=_Part_0"
     end
+
+    test "parses Content-Type with quoted-string containing semicolon" do
+      # RFC 2045 §5.1: parameter values can be quoted-strings containing any char
+      raw = """
+      From: sender@example.com
+      Content-Type: text/plain; name="file;name.txt"
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_type.type == "text"
+      assert message.content_type.subtype == "plain"
+      assert message.content_type.params["name"] == "file;name.txt"
+    end
+
+    test "parses Content-Type with quoted-string containing equals sign" do
+      raw = """
+      From: sender@example.com
+      Content-Type: text/plain; name="a=b.txt"
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_type.params["name"] == "a=b.txt"
+    end
+
+    test "parses Content-Type with backslash escapes in quoted-string" do
+      # RFC 5322 §3.2.4: quoted-pair = "\" (VCHAR / WSP)
+      raw = """
+      From: sender@example.com
+      Content-Type: text/plain; name="file\\"quote.txt"
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_type.params["name"] == "file\"quote.txt"
+    end
+
+    test "parses Content-Type with escaped backslash in quoted-string" do
+      raw = """
+      From: sender@example.com
+      Content-Type: text/plain; name="path\\\\file.txt"
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_type.params["name"] == "path\\file.txt"
+    end
+
+    test "parses Content-Type with multiple complex parameters" do
+      raw = """
+      From: sender@example.com
+      Content-Type: text/plain; charset=utf-8; name="test;file=1.txt"; format=flowed
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_type.params["charset"] == "utf-8"
+      assert message.content_type.params["name"] == "test;file=1.txt"
+      assert message.content_type.params["format"] == "flowed"
+    end
   end
 
   describe "multipart handling" do

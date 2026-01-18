@@ -160,13 +160,16 @@ defmodule Mailex.Parser do
   defp parse_content_type(nil), do: %{type: "text", subtype: "plain", params: %{}}
   defp parse_content_type(value) when is_list(value), do: parse_content_type(List.first(value))
   defp parse_content_type(value) do
-    # Split on semicolon for parameters
-    [type_part | param_parts] = String.split(value, ";")
+    # Tokenize respecting quoted-strings, then split on semicolons
+    case tokenize_header_value(value) do
+      [type_part | param_parts] ->
+        {type, subtype} = parse_mime_type(String.trim(type_part))
+        params = parse_params_from_tokens(param_parts)
+        %{type: type, subtype: subtype, params: params}
 
-    {type, subtype} = parse_mime_type(String.trim(type_part))
-    params = parse_params(param_parts)
-
-    %{type: type, subtype: subtype, params: params}
+      [] ->
+        %{type: "text", subtype: "plain", params: %{}}
+    end
   end
 
   defp parse_mime_type(type_str) do
@@ -176,23 +179,84 @@ defmodule Mailex.Parser do
     end
   end
 
-  defp parse_params(parts) do
+  # Tokenize header value by semicolons, respecting quoted-strings
+  # Returns list of tokens split on ";" but preserving quoted content
+  defp tokenize_header_value(value) do
+    tokenize_by_semicolon(value, "", [], false)
+  end
+
+  defp tokenize_by_semicolon("", current, tokens, _in_quote) do
+    Enum.reverse([current | tokens])
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+  end
+
+  # Escaped character inside quotes - skip both chars
+  defp tokenize_by_semicolon(<<"\\", char, rest::binary>>, current, tokens, true = in_quote) do
+    tokenize_by_semicolon(rest, current <> "\\" <> <<char>>, tokens, in_quote)
+  end
+
+  # Quote toggle
+  defp tokenize_by_semicolon(<<"\"", rest::binary>>, current, tokens, in_quote) do
+    tokenize_by_semicolon(rest, current <> "\"", tokens, not in_quote)
+  end
+
+  # Semicolon outside quotes - split here
+  defp tokenize_by_semicolon(<<";", rest::binary>>, current, tokens, false) do
+    tokenize_by_semicolon(rest, "", [current | tokens], false)
+  end
+
+  # Regular char
+  defp tokenize_by_semicolon(<<char, rest::binary>>, current, tokens, in_quote) do
+    tokenize_by_semicolon(rest, current <> <<char>>, tokens, in_quote)
+  end
+
+  defp parse_params_from_tokens(parts) do
     raw_params =
       parts
-      |> Enum.map(&String.trim/1)
       |> Enum.reduce(%{}, fn part, acc ->
-        case String.split(part, "=", parts: 2) do
-          [key, value] ->
-            key = String.downcase(String.trim(key))
-            value = value |> String.trim() |> unquote_value()
-            Map.put(acc, key, value)
-          _ ->
-            acc
+        case parse_param_token(part) do
+          {key, value} -> Map.put(acc, key, value)
+          nil -> acc
         end
       end)
 
     # Reassemble RFC 2231 continuation parameters
     reassemble_rfc2231_params(raw_params)
+  end
+
+  # Parse a single parameter token "key=value" respecting quoted-strings
+  defp parse_param_token(part) do
+    part = String.trim(part)
+    case find_first_equals_outside_quotes(part) do
+      nil -> nil
+      pos ->
+        key = part |> String.slice(0, pos) |> String.trim() |> String.downcase()
+        value = part |> String.slice((pos + 1)..-1//1) |> String.trim() |> unquote_value()
+        {key, value}
+    end
+  end
+
+  # Find position of first "=" that's not inside a quoted-string
+  defp find_first_equals_outside_quotes(str) do
+    find_equals(str, 0, false)
+  end
+
+  defp find_equals("", _pos, _in_quote), do: nil
+  defp find_equals(<<"\\", _, rest::binary>>, pos, true = in_quote) do
+    find_equals(rest, pos + 2, in_quote)
+  end
+  defp find_equals(<<"\"", rest::binary>>, pos, in_quote) do
+    find_equals(rest, pos + 1, not in_quote)
+  end
+  defp find_equals(<<"=", _rest::binary>>, pos, false), do: pos
+  defp find_equals(<<_, rest::binary>>, pos, in_quote) do
+    find_equals(rest, pos + 1, in_quote)
+  end
+
+  # Legacy parse_params for places that already have split parts
+  defp parse_params(parts) do
+    parse_params_from_tokens(parts)
   end
 
   # RFC 2231 parameter continuation reassembly and extended value decoding

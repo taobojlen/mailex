@@ -65,7 +65,7 @@ This document lists the gaps between the current Mailex parser implementation an
 
 ### 3.1 Content-Type parsing breaks on quoted-strings and comments
 
-**Status:** Partially Implemented (buggy)
+**Status:** ✅ Implemented (quoted-strings fixed, comments not yet handled)
 
 **Problem:** Using `String.split(value, ";")` and `String.split(part, "=", parts: 2)` fails when:
 - Parameter values are quoted-strings containing `;` or `=` (legal)
