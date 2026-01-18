@@ -22,6 +22,7 @@ defmodule Mailex.MixProject do
   defp deps do
     [
       {:nimble_parsec, "~> 1.4"},
+      {:codepagex, "~> 0.1.6"},
       {:jason, "~> 1.4", only: :test}
     ]
   end

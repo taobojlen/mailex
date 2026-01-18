@@ -200,6 +200,31 @@ defmodule Mailex.ParserTest do
       encoded = "=?UTF-8?B?QzpcVXNlcnNcZmlsZS50eHQ=?="
       assert Mailex.Parser.decode_rfc2047(encoded) == "C:\\Users\\file.txt"
     end
+
+    test "converts ISO-8859-15 charset to UTF-8" do
+      raw = File.read!(Path.join(@fixtures_dir, "german-qp.msg"))
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+
+      # The body should be converted to UTF-8
+      # ISO-8859-15 byte 0xF6 = ö, 0xE4 = ä, 0xFC = ü, 0xDF = ß
+      assert String.contains?(message.body, "Jörn")
+      assert String.contains?(message.body, "Sönderz")
+      assert String.contains?(message.body, "Grüße")
+    end
+
+    test "converts ISO-8859-5 (Cyrillic) charset to UTF-8" do
+      raw = """
+      From: test@example.com
+      Content-Type: text/plain; charset=iso-8859-5
+      Content-Transfer-Encoding: quoted-printable
+
+      =BF=E0=D8=D2=D5=E2
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      # ISO-8859-5: BF=П, E0=р, D8=и, D2=в, D5=е, E2=т -> "Привет" (Hello in Russian)
+      assert message.body == "Привет"
+    end
   end
 
   describe "edge cases and malformed messages" do

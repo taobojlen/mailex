@@ -220,7 +220,9 @@ defmodule Mailex.Parser do
         process_embedded_message(message, body)
 
       true ->
-        decoded_body = decode_body(body, message.encoding)
+        charset = message.content_type.params["charset"]
+        is_text = message.content_type.type == "text"
+        decoded_body = decode_body(body, message.encoding, charset, is_text)
         %{message | body: decoded_body}
     end
   end
@@ -353,12 +355,77 @@ defmodule Mailex.Parser do
     end
   end
 
-  # Decode body based on encoding
-  defp decode_body(body, encoding) do
-    case encoding do
+  # Decode body based on encoding, then convert charset to UTF-8 for text content
+  defp decode_body(body, encoding, charset, is_text) do
+    decoded = case encoding do
       "base64" -> decode_base64(body)
       "quoted-printable" -> decode_quoted_printable(body)
       _ -> body
+    end
+
+    # Convert charset to UTF-8 for text content
+    if is_text and charset do
+      convert_charset(decoded, charset)
+    else
+      decoded
+    end
+  end
+
+  # Convert text from source charset to UTF-8
+  defp convert_charset(text, charset) do
+    normalized_charset = normalize_charset(charset)
+
+    cond do
+      # Already UTF-8 or ASCII-compatible, no conversion needed
+      normalized_charset in ["utf-8", "us-ascii", "ascii"] ->
+        text
+
+      # Try to convert using codepagex
+      true ->
+        case codepagex_encoding(normalized_charset) do
+          nil ->
+            # Unknown charset, return as-is
+            text
+
+          encoding ->
+            case Codepagex.to_string(text, encoding) do
+              {:ok, converted} -> converted
+              {:error, _} -> text  # Conversion failed, return as-is
+            end
+        end
+    end
+  end
+
+  # Normalize charset name to lowercase without extra formatting
+  defp normalize_charset(charset) do
+    charset
+    |> String.downcase()
+    |> String.trim()
+    |> String.replace("_", "-")
+  end
+
+  # Map common charset names to codepagex encoding strings
+  # Codepagex uses "ISO8859/8859-X" format for ISO-8859 charsets
+  defp codepagex_encoding(charset) do
+    case charset do
+      "iso-8859-1" -> "ISO8859/8859-1"
+      "iso-8859-2" -> "ISO8859/8859-2"
+      "iso-8859-3" -> "ISO8859/8859-3"
+      "iso-8859-4" -> "ISO8859/8859-4"
+      "iso-8859-5" -> "ISO8859/8859-5"
+      "iso-8859-6" -> "ISO8859/8859-6"
+      "iso-8859-7" -> "ISO8859/8859-7"
+      "iso-8859-8" -> "ISO8859/8859-8"
+      "iso-8859-9" -> "ISO8859/8859-9"
+      "iso-8859-10" -> "ISO8859/8859-10"
+      "iso-8859-11" -> "ISO8859/8859-11"
+      "iso-8859-13" -> "ISO8859/8859-13"
+      "iso-8859-14" -> "ISO8859/8859-14"
+      "iso-8859-15" -> "ISO8859/8859-15"
+      "iso-8859-16" -> "ISO8859/8859-16"
+      # Windows and other encodings can be added by configuring codepagex
+      # See: https://hexdocs.pm/codepagex/readme.html#selecting-encodings
+      _ -> nil
     end
   end
 
