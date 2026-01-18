@@ -19,17 +19,19 @@ defmodule Mailex.Parser do
 
   # Field body: everything until end of line (including folded lines)
   # Folded lines start with whitespace
+  # Match any byte except CR/LF for header body content
+  # RFC 5322 §4 obs-text allows bytes 128-255, RFC 6532 allows UTF-8
   field_body_char = ascii_char([not: ?\r, not: ?\n])
 
   field_body_line =
     repeat(field_body_char)
-    |> reduce({List, :to_string, []})
+    |> reduce({:erlang, :list_to_binary, []})
 
   # A continuation line starts with whitespace after CRLF
   continuation =
     crlf
     |> ignore()
-    |> concat(times(wsp, min: 1) |> reduce({List, :to_string, []}))
+    |> concat(times(wsp, min: 1) |> reduce({:erlang, :list_to_binary, []}))
     |> concat(field_body_line)
     |> reduce({Enum, :join, [""]})
 

@@ -611,6 +611,48 @@ defmodule Mailex.ParserTest do
     end
   end
 
+  describe "8-bit and UTF-8 header values (RFC 5322 obs-text, RFC 6532)" do
+    test "parses header with raw 8-bit characters (obs-text)" do
+      # RFC 5322 §4 obsolete syntax allows bytes 128-255 in header values
+      # ISO-8859-1 encoded: "Jörn" where ö is byte 0xF6
+      raw = "From: sender@example.com\nSubject: Test from J\xF6rn\n\nBody.\n"
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.headers["subject"] == "Test from J\xF6rn"
+    end
+
+    test "parses header with UTF-8 characters (RFC 6532)" do
+      # RFC 6532 allows raw UTF-8 in header field bodies
+      raw = "From: sender@example.com\nSubject: Héllo Wörld 日本語\n\nBody.\n"
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.headers["subject"] == "Héllo Wörld 日本語"
+    end
+
+    test "parses From header with UTF-8 display name (RFC 6532)" do
+      raw = "From: José García <jose@example.com>\nSubject: Test\n\nBody.\n"
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.headers["from"] == "José García <jose@example.com>"
+    end
+
+    test "parses folded header with UTF-8 across fold" do
+      raw = "From: sender@example.com\nSubject: This is a long subject with UTF-8 日本語\n that continues here\n\nBody.\n"
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.headers["subject"] == "This is a long subject with UTF-8 日本語 that continues here"
+    end
+
+    test "parses multiple headers with mixed 8-bit and ASCII" do
+      raw = "From: Müller <muller@example.com>\nTo: Böb <bob@example.com>\nSubject: Grüße\n\nBody.\n"
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.headers["from"] == "Müller <muller@example.com>"
+      assert message.headers["to"] == "Böb <bob@example.com>"
+      assert message.headers["subject"] == "Grüße"
+    end
+  end
+
   describe "RFC 2231 parameter continuations" do
     test "reassembles simple continuation parameters (filename*0, filename*1)" do
       raw = """
