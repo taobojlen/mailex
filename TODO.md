@@ -101,10 +101,13 @@ Run tests: `mix test`
   end
   ```
 
-- [ ] **Inconsistent empty part handling**
-  
+- [x] **Inconsistent empty part handling**
+
   After fixing the double-boundary issue, empty parts now have `body: ""` while
   missing bodies have `body: nil`. Should pick one convention and stick with it.
+
+  **Resolution:** The convention is now documented: `body: ""` for empty content,
+  `body: nil` only for multipart/message containers where content is in `parts`.
 
 ---
 

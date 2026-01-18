@@ -9,7 +9,8 @@ defmodule Mailex.Message do
   - `:content_type` - Map with `:type`, `:subtype`, and `:params` keys.
     Example: `%{type: "text", subtype: "plain", params: %{"charset" => "utf-8"}}`
   - `:encoding` - Content-Transfer-Encoding value (e.g., "7bit", "base64", "quoted-printable")
-  - `:body` - Decoded body content for non-multipart messages, `nil` for multipart.
+  - `:body` - Decoded body content for non-multipart messages (empty string `""` if no content),
+    `nil` for multipart/message containers where content is in `:parts`.
   - `:parts` - List of `%Mailex.Message{}` structs for multipart messages, `nil` otherwise.
   - `:filename` - Extracted filename from Content-Disposition or Content-Type name parameter.
   """

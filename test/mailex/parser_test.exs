@@ -249,7 +249,9 @@ defmodule Mailex.ParserTest do
       """
 
       assert {:ok, message} = Mailex.Parser.parse(raw)
-      assert message.body == "" or message.body == nil
+      # Empty bodies are represented as "", not nil
+      # nil is reserved for multipart/message containers where content is in parts
+      assert message.body == ""
     end
 
     test "handles CRLF line endings" do
