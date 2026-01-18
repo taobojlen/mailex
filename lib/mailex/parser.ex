@@ -79,6 +79,95 @@ defmodule Mailex.Parser do
 
   defparsec :parse_token, token
 
+  # RFC 5322 §3.6.4 Message Identification Fields
+  # msg-id = [CFWS] "<" id-left "@" id-right ">" [CFWS]
+  # id-left = dot-atom-text / obs-id-left
+  # id-right = dot-atom-text / no-fold-literal / obs-id-right
+
+  # RFC 5322 §3.2.3 atext - printable US-ASCII except specials
+  # atext = ALPHA / DIGIT / "!" / "#" / "$" / "%" / "&" / "'" / "*" / "+" / "-" / "/" / "=" / "?" / "^" / "_" / "`" / "{" / "|" / "}" / "~"
+  # specials = "(" / ")" / "<" / ">" / "[" / "]" / ":" / ";" / "@" / "\" / "," / "." / DQUOTE
+  atext =
+    ascii_char([
+      ?a..?z, ?A..?Z, ?0..?9,
+      ?!, ?#, ?$, ?%, ?&, ?', ?*, ?+, ?-, ?/, ?=, ??, ?^, ?_, ?`, ?{, ?|, ?}, ?~
+    ])
+
+  # dot-atom-text = 1*atext *("." 1*atext)
+  dot_atom_text =
+    times(atext, min: 1)
+    |> repeat(
+      string(".")
+      |> concat(times(atext, min: 1))
+    )
+    |> reduce({:erlang, :list_to_binary, []})
+
+  # dtext = printable US-ASCII except "[", "]", or "\"
+  # %d33-90 (! through Z) / %d94-126 (^ through ~)
+  dtext = ascii_char([?!..?Z, ?^..?~])
+
+  # no-fold-literal = "[" *dtext "]"
+  no_fold_literal =
+    string("[")
+    |> concat(repeat(dtext) |> reduce({:erlang, :list_to_binary, []}))
+    |> string("]")
+    |> reduce({__MODULE__, :join_no_fold_literal, []})
+
+  # id-left = dot-atom-text (obs-id-left omitted for now)
+  id_left = dot_atom_text
+
+  # id-right = dot-atom-text / no-fold-literal (obs-id-right omitted for now)
+  id_right = choice([dot_atom_text, no_fold_literal])
+
+  # FWS = ([*WSP CRLF] 1*WSP) - Folding whitespace
+  # For msg-id, we just need to skip whitespace including folded lines
+  fws =
+    optional(
+      repeat(wsp)
+      |> concat(crlf)
+    )
+    |> times(wsp, min: 1)
+    |> ignore()
+
+  # CFWS = (1*([FWS] comment) [FWS]) / FWS
+  # Simplified: optional whitespace/comments around the msg-id
+  cfws =
+    repeat(
+      choice([
+        fws,
+        times(wsp, min: 1) |> ignore(),
+        comment |> ignore()
+      ])
+    )
+
+  # msg-id = [CFWS] "<" id-left "@" id-right ">" [CFWS]
+  msg_id =
+    optional(cfws)
+    |> ignore(string("<"))
+    |> concat(id_left)
+    |> ignore(string("@"))
+    |> concat(id_right)
+    |> ignore(string(">"))
+    |> optional(cfws)
+    |> reduce({__MODULE__, :join_msg_id, []})
+
+  defparsec :parse_msg_id, msg_id
+
+  # msg-id-list = 1*msg-id (for In-Reply-To and References)
+  msg_id_list =
+    optional(cfws)
+    |> times(msg_id, min: 1)
+    |> optional(cfws)
+    |> wrap()
+
+  defparsec :parse_msg_id_list, msg_id_list
+
+  # Helper to join no-fold-literal parts: "[" + content + "]"
+  def join_no_fold_literal(["[", content, "]"]), do: "[" <> content <> "]"
+
+  # Helper to join msg-id parts: id-left + "@" + id-right
+  def join_msg_id([id_left, id_right]), do: id_left <> "@" <> id_right
+
   # Field name: any printable ASCII except ":"
   # RFC 5322 Section 2.2: printable US-ASCII chars (0x21-0x7E) except colon (0x3A)
   field_name =
@@ -820,11 +909,23 @@ defmodule Mailex.Parser do
     end
   end
 
-  # Extract all msg-id tokens from a header value
-  # Matches: < id-left @ id-right > with optional whitespace
+  # Extract all msg-id tokens from a header value using NimbleParsec parser
+  # Falls back to lenient regex extraction for malformed but common real-world IDs
   defp extract_msg_ids(str) do
-    # Pattern: < followed by non-angle-bracket content, then >
-    # Allows whitespace inside angle brackets (lenient parsing)
+    # Try RFC-compliant NimbleParsec parser first
+    case parse_msg_id_list(str) do
+      {:ok, [ids], "", _, _, _} ->
+        ids
+
+      _ ->
+        # Fallback to lenient regex extraction for non-compliant but common IDs
+        extract_msg_ids_lenient(str)
+    end
+  end
+
+  # Lenient regex-based extraction for malformed message IDs
+  # Matches: < id-left @ id-right > with optional whitespace
+  defp extract_msg_ids_lenient(str) do
     ~r/<\s*([^<>]+?)\s*>/
     |> Regex.scan(str)
     |> Enum.map(fn [_, content] -> String.trim(content) end)

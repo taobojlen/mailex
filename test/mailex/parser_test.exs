@@ -1558,4 +1558,119 @@ defmodule Mailex.ParserTest do
       assert header_value == <<0x80, 0x81, 0xFE, 0xFF>>
     end
   end
+
+  describe "parse_msg_id/1 NimbleParsec combinator (RFC 5322 §3.6.4)" do
+    test "parses simple msg-id" do
+      assert {:ok, ["abc@example.com"], "", _, _, _} =
+               Mailex.Parser.parse_msg_id("<abc@example.com>")
+    end
+
+    test "parses msg-id with dot-atom-text on both sides" do
+      # dot-atom-text = 1*atext *("." 1*atext)
+      assert {:ok, ["user.name@mail.example.com"], "", _, _, _} =
+               Mailex.Parser.parse_msg_id("<user.name@mail.example.com>")
+    end
+
+    test "parses msg-id with special atext characters" do
+      # atext includes: ! # $ % & ' * + - / = ? ^ _ ` { | } ~
+      assert {:ok, ["CAFn=+P.Z8q1xN_ksO2=@mail.gmail.com"], "", _, _, _} =
+               Mailex.Parser.parse_msg_id("<CAFn=+P.Z8q1xN_ksO2=@mail.gmail.com>")
+    end
+
+    test "parses msg-id with leading/trailing CFWS (whitespace)" do
+      assert {:ok, ["abc@example.com"], "", _, _, _} =
+               Mailex.Parser.parse_msg_id("   <abc@example.com>   ")
+    end
+
+    test "parses msg-id with leading/trailing comments" do
+      assert {:ok, ["abc@example.com"], "", _, _, _} =
+               Mailex.Parser.parse_msg_id("(comment before) <abc@example.com> (comment after)")
+    end
+
+    test "parses msg-id with no-fold-literal id-right (domain literal)" do
+      # no-fold-literal = "[" *dtext "]"
+      assert {:ok, ["user@[192.168.1.1]"], "", _, _, _} =
+               Mailex.Parser.parse_msg_id("<user@[192.168.1.1]>")
+    end
+
+    test "parses msg-id with IPv6 domain literal" do
+      assert {:ok, ["user@[IPv6:2001:db8::1]"], "", _, _, _} =
+               Mailex.Parser.parse_msg_id("<user@[IPv6:2001:db8::1]>")
+    end
+
+    test "returns id without angle brackets" do
+      assert {:ok, ["local-part@domain"], "", _, _, _} =
+               Mailex.Parser.parse_msg_id("<local-part@domain>")
+    end
+
+    test "handles msg-id with numeric local part" do
+      assert {:ok, ["123456789@example.com"], "", _, _, _} =
+               Mailex.Parser.parse_msg_id("<123456789@example.com>")
+    end
+
+    test "handles msg-id with all-numeric domain labels" do
+      assert {:ok, ["user@123.456.example.com"], "", _, _, _} =
+               Mailex.Parser.parse_msg_id("<user@123.456.example.com>")
+    end
+
+    test "fails on msg-id missing @" do
+      assert {:error, _, _, _, _, _} = Mailex.Parser.parse_msg_id("<invalid>")
+    end
+
+    test "fails on msg-id with empty id-left" do
+      assert {:error, _, _, _, _, _} = Mailex.Parser.parse_msg_id("<@example.com>")
+    end
+
+    test "fails on msg-id with empty id-right" do
+      assert {:error, _, _, _, _, _} = Mailex.Parser.parse_msg_id("<user@>")
+    end
+
+    test "fails on empty angle brackets" do
+      assert {:error, _, _, _, _, _} = Mailex.Parser.parse_msg_id("<>")
+    end
+  end
+
+  describe "parse_msg_id_list/1 NimbleParsec combinator (RFC 5322 §3.6.4)" do
+    test "parses single msg-id in list" do
+      assert {:ok, [["abc@example.com"]], "", _, _, _} =
+               Mailex.Parser.parse_msg_id_list("<abc@example.com>")
+    end
+
+    test "parses multiple msg-ids separated by whitespace" do
+      assert {:ok, [["first@example.com", "second@example.com"]], "", _, _, _} =
+               Mailex.Parser.parse_msg_id_list("<first@example.com> <second@example.com>")
+    end
+
+    test "parses multiple msg-ids with comments between" do
+      assert {:ok, [["first@a.com", "second@b.com"]], "", _, _, _} =
+               Mailex.Parser.parse_msg_id_list("<first@a.com> (reply) <second@b.com>")
+    end
+
+    test "parses References header value with many msg-ids" do
+      input = "<root@example.com> <reply1@example.com> <reply2@example.com> <reply3@example.com>"
+
+      assert {:ok, [ids], "", _, _, _} = Mailex.Parser.parse_msg_id_list(input)
+      assert ids == ["root@example.com", "reply1@example.com", "reply2@example.com", "reply3@example.com"]
+    end
+
+    test "parses msg-id list with folded whitespace (newline + space)" do
+      input = "<root@example.com>\n <reply@example.com>"
+
+      assert {:ok, [["root@example.com", "reply@example.com"]], "", _, _, _} =
+               Mailex.Parser.parse_msg_id_list(input)
+    end
+
+    test "parses msg-id list with leading/trailing CFWS" do
+      assert {:ok, [["a@b.com", "c@d.com"]], "", _, _, _} =
+               Mailex.Parser.parse_msg_id_list("  <a@b.com>  <c@d.com>  ")
+    end
+
+    test "fails on empty input" do
+      assert {:error, _, _, _, _, _} = Mailex.Parser.parse_msg_id_list("")
+    end
+
+    test "fails on input with no valid msg-ids" do
+      assert {:error, _, _, _, _, _} = Mailex.Parser.parse_msg_id_list("not a message id")
+    end
+  end
 end

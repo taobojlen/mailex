@@ -45,7 +45,7 @@ This document lists the gaps between the current Mailex parser implementation an
 
 ### 2.1 No parsing for Message-ID / In-Reply-To / References
 
-**Status:** Not Implemented
+**Status:** ✅ Implemented
 
 **Problem:** These are stored as raw header values only. No validation or extraction of msg-id tokens.
 
@@ -55,9 +55,14 @@ This document lists the gaps between the current Mailex parser implementation an
 - `In-Reply-To` and `References` contain one or more msg-ids
 
 **Implementation:**
-- Add a combinator for `msg-id` and `msg-id-list`
-- Handle CFWS around angle brackets and separators
-- Extract list of message IDs from `References` for threading
+Implemented:
+- `parse_msg_id/1` NimbleParsec combinator for single msg-id
+- `parse_msg_id_list/1` NimbleParsec combinator for In-Reply-To/References
+- Proper `dot-atom-text` parsing for id-left
+- `no-fold-literal` support for domain literals (e.g., `[192.168.1.1]`, `[IPv6:...]`)
+- CFWS (comments and folding whitespace) handling around msg-ids
+- Extraction integrated into Message struct: `message_id`, `in_reply_to`, `references`
+- Fallback to lenient regex for non-compliant but common real-world IDs
 
 ---
 
@@ -370,8 +375,8 @@ Suggested order based on impact and dependencies:
 7. ✅ **9.1** ~~Rebuild Content-Disposition parser~~
 8. ✅ **9.2** ~~Fix RFC 2231 edge cases~~
 
-### Phase 4: Structured Header Parsing
-9. **2.1** Implement Message-ID parsing
+### Phase 4: Structured Header Parsing ✅
+9. ✅ **2.1** ~~Implement Message-ID parsing~~
 
 ### Phase 5: Enhanced Features
 10. **8.1** Add multipart/related root resolution
