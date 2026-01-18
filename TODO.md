@@ -41,80 +41,9 @@ This document lists the gaps between the current Mailex parser implementation an
 
 ---
 
-## 2. Address Parsing
+## 2. Message-ID Parsing
 
-### 2.1 No structured parsing for address fields
-
-**Status:** Not Implemented
-
-**Problem:** The parser does not parse `From`, `To`, `Cc`, `Bcc`, `Reply-To`, `Sender`, or `Resent-*` headers into structured forms. Missing support for:
-- Display-name phrases (`"John Doe" <john@example.com>`)
-- Angle-addr vs addr-spec (`<user@domain>` vs `user@domain`)
-- Groups (`Group Name: a@b, c@d;`)
-- Comments and CFWS around tokens (`John (CEO) <a@b>`)
-- Quoted local-parts (`"weird local"@example.com`)
-- Domain-literals (`user@[127.0.0.1]`)
-
-**RFCs:**
-- RFC 5322 §3.4 — Address Specification
-- RFC 5322 §3.4.1 — `addr-spec`
-- RFC 5322 §3.2.2 — CFWS impacts token boundaries
-
-**Implementation:**
-Implement a dedicated address parser with these combinators:
-- Lexical: `atext`, `dot-atom-text`, `quoted-string`, `domain-literal`, `comment`, `CFWS`
-- Grammar: `addr-spec`, `angle-addr`, `name-addr`, `mailbox`, `group`, `address-list`
-- Output structured AST like:
-  ```elixir
-  %{type: :mailbox, name: "John Doe", address: "john@example.com"}
-  %{type: :group, name: "Team", members: [mailbox, ...]}
-  ```
-
----
-
-### 2.2 RFC 6854: Group syntax in From:/Sender: not supported
-
-**Status:** Not Implemented
-
-**Problem:** RFC 6854 updates RFC 5322 to allow group syntax in `From:` and `Sender:` fields (e.g., `From: Automated System:;` for no-reply addresses). Current parser treats these as raw strings.
-
-**RFCs:**
-- RFC 6854 — Updates RFC 5322 §3.6.2 to permit groups in `From:`/`Sender:`
-
-**Implementation:**
-- When implementing address parsing, ensure `From`/`Sender` accept `address-list` including groups
-- Handle empty groups (`Group:;`) which are valid for no-reply addresses
-
----
-
-## 3. Date-Time Parsing
-
-### 3.1 No parsing of Date/Resent-Date fields
-
-**Status:** Not Implemented
-
-**Problem:** No parser for RFC 5322 `date-time` grammar. Cannot validate, normalize, or expose structured date information.
-
-**RFCs:**
-- RFC 5322 §3.3 — Date and Time Specification
-- RFC 5322 §3.6.1 — The Origination Date Field
-- RFC 5322 §4.3 — Obsolete Date and Time (2-digit years, named timezones like EST, PDT)
-
-**Implementation:**
-Implement `date-time` parsing:
-- Optional day-of-week + comma
-- Day month year time zone
-- CFWS allowed between components
-- Support obsolete forms (`obs-date`, `obs-zone`) for tolerance:
-  - 2-digit years: 00-49 → 2000-2049, 50-99 → 1950-1999
-  - Named zones: EST=-0500, PDT=-0700, GMT/UT=+0000, military zones A-Z
-- Output: `DateTime` struct or `{date, time, offset}` tuple
-
----
-
-## 4. Message-ID Parsing
-
-### 4.1 No parsing for Message-ID / In-Reply-To / References
+### 2.1 No parsing for Message-ID / In-Reply-To / References
 
 **Status:** Not Implemented
 
@@ -132,9 +61,9 @@ Implement `date-time` parsing:
 
 ---
 
-## 5. MIME Type/Subtype Handling
+## 3. MIME Type/Subtype Handling
 
-### 5.1 Content-Type parsing breaks on quoted-strings and comments
+### 3.1 Content-Type parsing breaks on quoted-strings and comments
 
 **Status:** Partially Implemented (buggy)
 
@@ -156,7 +85,7 @@ Implement a real `content-type` value parser with NimbleParsec:
 
 ---
 
-### 5.2 Missing Content-Type defaults are incomplete
+### 3.2 Missing Content-Type defaults are incomplete
 
 **Status:** Partially Implemented
 
@@ -172,9 +101,9 @@ Implement a real `content-type` value parser with NimbleParsec:
 
 ---
 
-## 6. Obsolete Syntax Support
+## 4. Obsolete Syntax Support
 
-### 6.1 No explicit support for obs-* productions
+### 4.1 No explicit support for obs-* productions
 
 **Status:** Not Implemented
 
@@ -198,9 +127,9 @@ Implement a real `content-type` value parser with NimbleParsec:
 
 ---
 
-## 7. Comments (CFWS) Handling
+## 5. Comments (CFWS) Handling
 
-### 7.1 No parsing or skipping of comments
+### 5.1 No parsing or skipping of comments
 
 **Status:** Not Implemented
 
@@ -219,9 +148,9 @@ Implement comment handling:
 
 ---
 
-## 8. Quoted-String Parsing
+## 6. Quoted-String Parsing
 
-### 8.1 Quoted-string escapes not properly handled
+### 6.1 Quoted-string escapes not properly handled
 
 **Status:** Partially Implemented (incomplete)
 
@@ -243,9 +172,9 @@ Implement comment handling:
 
 ---
 
-## 9. Internationalized Email Support
+## 7. Internationalized Email Support
 
-### 9.1 RFC 6532 UTF-8 headers not supported
+### 7.1 RFC 6532 UTF-8 headers not supported
 
 **Status:** Not Implemented
 
@@ -262,7 +191,7 @@ Implement comment handling:
 
 ---
 
-### 9.2 Internationalized email addresses not supported
+### 7.2 Internationalized email addresses not supported
 
 **Status:** Not Implemented
 
@@ -279,9 +208,9 @@ Implement comment handling:
 
 ---
 
-## 10. multipart/related Support
+## 8. multipart/related Support
 
-### 10.1 Root part resolution not implemented
+### 8.1 Root part resolution not implemented
 
 **Status:** Not Implemented
 
@@ -301,9 +230,9 @@ When `content-type` is `multipart/related`:
 
 ---
 
-## 11. Content-Disposition Improvements
+## 9. Content-Disposition Improvements
 
-### 11.1 Disposition type and additional parameters not exposed
+### 9.1 Disposition type and additional parameters not exposed
 
 **Status:** Partially Implemented
 
@@ -324,7 +253,7 @@ When `content-type` is `multipart/related`:
 
 ---
 
-### 11.2 RFC 2231 parameter handling edge cases
+### 9.2 RFC 2231 parameter handling edge cases
 
 **Status:** Partially Implemented (edge cases)
 
@@ -347,9 +276,9 @@ When `content-type` is `multipart/related`:
 
 ---
 
-## 12. RFC 2047 Encoded-Word Improvements
+## 10. RFC 2047 Encoded-Word Improvements
 
-### 12.1 RFC 2047 decoding is not charset-aware
+### 10.1 RFC 2047 decoding is not charset-aware
 
 **Status:** Partially Implemented (buggy)
 
@@ -367,7 +296,7 @@ When `content-type` is `multipart/related`:
 
 ---
 
-### 12.2 RFC 2047 only applied to filename, not other headers
+### 10.2 RFC 2047 only applied to filename, not other headers
 
 **Status:** Partially Implemented
 
@@ -387,9 +316,9 @@ When `content-type` is `multipart/related`:
 
 ---
 
-## 13. Multipart Boundary Parsing
+## 11. Multipart Boundary Parsing
 
-### 13.1 Boundary delimiter parsing not fully RFC-compliant
+### 11.1 Boundary delimiter parsing not fully RFC-compliant
 
 **Status:** Partially Implemented (edge cases)
 
@@ -417,33 +346,30 @@ Suggested order based on impact and dependencies:
 1. **1.2** Fix header unfolding to not trim whitespace
 
 ### Phase 2: Lexical Primitives (Enables Everything Else)
-3. **8.1** Implement proper `quoted-string` parsing with escapes
-4. **7.1** Implement CFWS/comment handling
-5. Implement `token` parser per RFC 2045
+2. **6.1** Implement proper `quoted-string` parsing with escapes
+3. **5.1** Implement CFWS/comment handling
+4. Implement `token` parser per RFC 2045
 
 ### Phase 3: MIME Parsing Rebuild
-6. **5.1** Rebuild Content-Type parser using primitives
-7. **11.1** Rebuild Content-Disposition parser
-8. **11.2** Fix RFC 2231 edge cases
+5. **3.1** Rebuild Content-Type parser using primitives
+6. **9.1** Rebuild Content-Disposition parser
+7. **9.2** Fix RFC 2231 edge cases
 
 ### Phase 4: Structured Header Parsing
-9. **2.1** Implement address parsing (addr-spec, mailbox, group)
-10. **2.2** Add RFC 6854 group support in From/Sender
-11. **3.1** Implement date-time parsing
-12. **4.1** Implement Message-ID parsing
+8. **2.1** Implement Message-ID parsing
 
 ### Phase 5: Enhanced Features
-13. **10.1** Add multipart/related root resolution
-14. **12.1** Fix RFC 2047 charset conversion
-15. **12.2** Apply RFC 2047 to more headers
-16. **9.1** Full RFC 6532 UTF-8 header support
-17. **9.2** Internationalized address support
+9. **8.1** Add multipart/related root resolution
+10. **10.1** Fix RFC 2047 charset conversion
+11. **10.2** Apply RFC 2047 to more headers
+12. **7.1** Full RFC 6532 UTF-8 header support
+13. **7.2** Internationalized address support
 
 ### Phase 6: Robustness
-18. **6.1** Add obsolete syntax tolerance
-19. **1.3** Improve malformed header handling
-20. **5.2** Complete Content-Type defaults
-21. **13.1** Improve multipart boundary parsing
+14. **4.1** Add obsolete syntax tolerance
+15. **1.3** Improve malformed header handling
+16. **3.2** Complete Content-Type defaults
+17. **11.1** Improve multipart boundary parsing
 
 ---
 
