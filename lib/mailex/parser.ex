@@ -10,8 +10,9 @@ defmodule Mailex.Parser do
   crlf = choice([string("\r\n"), string("\n")])
 
   # Field name: any printable ASCII except ":"
+  # RFC 5322 Section 2.2: printable US-ASCII chars (0x21-0x7E) except colon (0x3A)
   field_name =
-    ascii_string([?!, ?#..?9, ?;..?~], min: 1)
+    ascii_string([?!..?9, ?;..?~], min: 1)
     |> reduce({Enum, :join, [""]})
 
   # Field body: everything until end of line (including folded lines)
@@ -252,7 +253,6 @@ defmodule Mailex.Parser do
       part = Regex.replace(~r/^[ \t]*\r?\n/, part, "")
       part
     end)
-    |> Enum.reject(&(String.trim(&1) == ""))
   end
 
   # Parse a single part
