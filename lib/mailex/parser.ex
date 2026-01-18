@@ -229,11 +229,17 @@ defmodule Mailex.Parser do
   end
 
   # Split multipart body into parts
+  # RFC 2046: Boundaries must appear at the start of a line (after CRLF/LF)
   defp split_multipart(body, boundary) do
     delimiter = "--" <> boundary
 
-    # Split by delimiter
-    parts = String.split(body, delimiter)
+    # Build regex that matches boundary at start of line (or start of body)
+    # The boundary is preceded by CRLF or LF (or nothing at start of body)
+    escaped_delimiter = Regex.escape(delimiter)
+    boundary_regex = Regex.compile!("(?:^|\\r?\\n)" <> escaped_delimiter)
+
+    # Split by boundary at line start
+    parts = Regex.split(boundary_regex, body)
 
     # First part is preamble (ignore), last part may contain epilogue
     parts = case parts do
