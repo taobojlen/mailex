@@ -917,4 +917,156 @@ defmodule Mailex.ParserTest do
       assert message.message_id == nil or message.message_id == ""
     end
   end
+
+  describe "RFC 5322 §3.2.2 comments and CFWS" do
+    test "strips simple comment from Content-Type" do
+      raw = """
+      From: sender@example.com
+      Content-Type: text/plain (a comment); charset=utf-8
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_type.type == "text"
+      assert message.content_type.subtype == "plain"
+      assert message.content_type.params["charset"] == "utf-8"
+    end
+
+    test "strips nested comments from Content-Type" do
+      raw = """
+      From: sender@example.com
+      Content-Type: text/plain (outer (nested) comment); charset=utf-8
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_type.type == "text"
+      assert message.content_type.subtype == "plain"
+      assert message.content_type.params["charset"] == "utf-8"
+    end
+
+    test "handles escaped parentheses in comments" do
+      raw = """
+      From: sender@example.com
+      Content-Type: text/plain (comment with \\( escaped parens \\)); charset=utf-8
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_type.type == "text"
+      assert message.content_type.subtype == "plain"
+      assert message.content_type.params["charset"] == "utf-8"
+    end
+
+    test "handles escaped backslash in comments" do
+      raw = """
+      From: sender@example.com
+      Content-Type: text/plain (comment with \\\\ backslash); charset=utf-8
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_type.type == "text"
+      assert message.content_type.subtype == "plain"
+      assert message.content_type.params["charset"] == "utf-8"
+    end
+
+    test "strips multiple comments from Content-Type" do
+      # Note: comment between "text" and "/" leaves a space, which is normalized during type parsing
+      raw = """
+      From: sender@example.com
+      Content-Type: text(type comment)/plain(subtype comment); charset=utf-8
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_type.type == "text"
+      assert message.content_type.subtype == "plain"
+      assert message.content_type.params["charset"] == "utf-8"
+    end
+
+    test "does not treat parentheses inside quoted-strings as comments" do
+      raw = """
+      From: sender@example.com
+      Content-Type: text/plain; name="file (1).txt"
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_type.params["name"] == "file (1).txt"
+    end
+
+    test "strips comment after parameter value" do
+      raw = """
+      From: sender@example.com
+      Content-Type: text/plain; charset=utf-8 (Unicode)
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_type.type == "text"
+      assert message.content_type.subtype == "plain"
+      assert message.content_type.params["charset"] == "utf-8"
+    end
+
+    test "strips comment from Content-Disposition" do
+      raw = """
+      From: sender@example.com
+      Content-Type: application/octet-stream
+      Content-Disposition: attachment (save to disk); filename="test.txt"
+
+      Body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.filename == "test.txt"
+    end
+
+    test "parse_comment parses simple comment" do
+      assert {:ok, ["a comment"], "", _, _, _} = Mailex.Parser.parse_comment("(a comment)")
+    end
+
+    test "parse_comment parses nested comment" do
+      assert {:ok, ["outer (inner) text"], "", _, _, _} = Mailex.Parser.parse_comment("(outer (inner) text)")
+    end
+
+    test "parse_comment handles escaped characters" do
+      assert {:ok, [content], "", _, _, _} = Mailex.Parser.parse_comment("(escaped \\( paren)")
+      assert content == "escaped ( paren"
+    end
+
+    test "parse_comment handles escaped backslash" do
+      assert {:ok, [content], "", _, _, _} = Mailex.Parser.parse_comment("(escaped \\\\ backslash)")
+      assert content == "escaped \\ backslash"
+    end
+
+    test "strip_comments removes all comments from string" do
+      assert Mailex.Parser.strip_comments("text/plain (comment)") == "text/plain"
+    end
+
+    test "strip_comments handles nested comments" do
+      # Comments are removed leaving surrounding space, then trimmed
+      assert Mailex.Parser.strip_comments("text(outer (inner) end)/plain") == "text/plain"
+    end
+
+    test "strip_comments preserves quoted-strings with parentheses" do
+      assert Mailex.Parser.strip_comments("text/plain; name=\"file (1).txt\"") ==
+             "text/plain; name=\"file (1).txt\""
+    end
+
+    test "strip_comments handles multiple comments" do
+      assert Mailex.Parser.strip_comments("a (c1) b (c2) c") == "a  b  c"
+    end
+
+    test "strip_comments handles escaped parentheses" do
+      assert Mailex.Parser.strip_comments("text (with \\( escaped) /plain") == "text  /plain"
+    end
+  end
 end

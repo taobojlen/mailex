@@ -11,6 +11,43 @@ defmodule Mailex.Parser do
   wsp = ascii_char([?\s, ?\t])
   crlf = choice([string("\r\n"), string("\n")])
 
+  # RFC 5322 §3.2.2 Comments
+  # ctext = printable US-ASCII except "(", ")", or "\"
+  # Characters 33-39 (!-'), 42-91 (*-[), 93-126 (]-~)
+  # Also include space and tab as they're allowed in comment content
+  ctext = utf8_char([?\s, ?\t, ?!..?', ?*..?[, ?]..?~, 0x80..0x10FFFF])
+
+  # quoted-pair = "\" followed by any printable char or space/tab
+  comment_quoted_pair =
+    ignore(string("\\"))
+    |> utf8_char([0x20..0x7E, 0x80..0x10FFFF])
+
+  # Forward declaration for nested comments - we'll use lookahead/recursion
+  # ccontent = ctext / quoted-pair / comment
+  # comment = "(" *([FWS] ccontent) [FWS] ")"
+  defcombinatorp :comment_content,
+    choice([
+      comment_quoted_pair,
+      ctext,
+      # Nested comment - recursively parse and wrap in parens for reconstruction
+      parsec(:nested_comment)
+    ])
+
+  defcombinatorp :nested_comment,
+    ignore(string("("))
+    |> repeat(parsec(:comment_content))
+    |> ignore(string(")"))
+    |> reduce({__MODULE__, :wrap_nested_comment, []})
+
+  # Top-level comment parser
+  comment =
+    ignore(string("("))
+    |> repeat(parsec(:comment_content))
+    |> ignore(string(")"))
+    |> reduce({:erlang, :list_to_binary, []})
+
+  defparsec :parse_comment, comment
+
   # Field name: any printable ASCII except ":"
   # RFC 5322 Section 2.2: printable US-ASCII chars (0x21-0x7E) except colon (0x3A)
   field_name =
@@ -121,6 +158,67 @@ defmodule Mailex.Parser do
     |> Enum.join(" ")
   end
 
+  # Helper to wrap nested comment content in parentheses for reconstruction
+  def wrap_nested_comment(chars) do
+    "(" <> :erlang.list_to_binary(chars) <> ")"
+  end
+
+  @doc """
+  Strips RFC 5322 comments from a header value.
+  Comments are enclosed in parentheses and may be nested.
+  Preserves parentheses inside quoted-strings.
+  """
+  @spec strip_comments(binary()) :: binary()
+  def strip_comments(value) when is_binary(value) do
+    strip_comments_impl(value, "", false, 0)
+    |> String.trim()
+  end
+
+  # Strip comments while respecting quoted-strings
+  # in_quote: are we inside a quoted-string?
+  # depth: nesting depth of comments (0 = not in comment)
+  defp strip_comments_impl("", acc, _in_quote, _depth), do: acc
+
+  # Escaped character inside quote - keep both chars
+  defp strip_comments_impl(<<"\\", char, rest::binary>>, acc, true = in_quote, depth) do
+    strip_comments_impl(rest, acc <> "\\" <> <<char>>, in_quote, depth)
+  end
+
+  # Quote toggle (only when not in a comment)
+  defp strip_comments_impl(<<"\"", rest::binary>>, acc, in_quote, 0 = depth) do
+    strip_comments_impl(rest, acc <> "\"", not in_quote, depth)
+  end
+
+  # Quote inside comment - just skip
+  defp strip_comments_impl(<<"\"", rest::binary>>, acc, in_quote, depth) when depth > 0 do
+    strip_comments_impl(rest, acc, in_quote, depth)
+  end
+
+  # Escaped character inside comment - skip both
+  defp strip_comments_impl(<<"\\", _char, rest::binary>>, acc, in_quote, depth) when depth > 0 do
+    strip_comments_impl(rest, acc, in_quote, depth)
+  end
+
+  # Open paren outside quote - start/increase comment depth
+  defp strip_comments_impl(<<"(", rest::binary>>, acc, false = in_quote, depth) do
+    strip_comments_impl(rest, acc, in_quote, depth + 1)
+  end
+
+  # Close paren outside quote - decrease comment depth
+  defp strip_comments_impl(<<")", rest::binary>>, acc, false = in_quote, depth) when depth > 0 do
+    strip_comments_impl(rest, acc, in_quote, depth - 1)
+  end
+
+  # Any char inside comment - skip
+  defp strip_comments_impl(<<_char, rest::binary>>, acc, in_quote, depth) when depth > 0 do
+    strip_comments_impl(rest, acc, in_quote, depth)
+  end
+
+  # Regular char outside comment
+  defp strip_comments_impl(<<char, rest::binary>>, acc, in_quote, depth) do
+    strip_comments_impl(rest, acc <> <<char>>, in_quote, depth)
+  end
+
   # Post-traverse to build the message structure from parsed headers
   def parse_message(rest, [{:headers, header_pairs}], context, _line, _offset) do
     headers = build_headers(header_pairs)
@@ -160,6 +258,9 @@ defmodule Mailex.Parser do
   defp parse_content_type(nil), do: %{type: "text", subtype: "plain", params: %{}}
   defp parse_content_type(value) when is_list(value), do: parse_content_type(List.first(value))
   defp parse_content_type(value) do
+    # Strip RFC 5322 comments before tokenizing
+    value = strip_comments(value)
+
     # Tokenize respecting quoted-strings, then split on semicolons
     case tokenize_header_value(value) do
       [type_part | param_parts] ->
@@ -514,6 +615,9 @@ defmodule Mailex.Parser do
   end
 
   defp parse_disposition_params(disposition) do
+    # Strip RFC 5322 comments before parsing
+    disposition = strip_comments(disposition)
+
     case String.split(disposition, ";") do
       [_type | params] -> parse_params(params)
       _ -> %{}

@@ -131,7 +131,7 @@ Implement a real `content-type` value parser with NimbleParsec:
 
 ### 5.1 No parsing or skipping of comments
 
-**Status:** Not Implemented
+**Status:** ✅ Implemented
 
 **Problem:** Comments can appear in many header values: `From: John (CEO) <a@b>`. Current `String.split` based parsing fails on comments. RFC 2047 decoding and address parsing require CFWS awareness.
 
@@ -140,11 +140,11 @@ Implement a real `content-type` value parser with NimbleParsec:
 - Comments use nesting: `comment = "(" *(ctext / quoted-pair / comment) ")"`
 
 **Implementation:**
-Implement comment handling:
-- `comment` combinator with proper nesting
-- `CFWS` (comment or folding-white-space) combinator
-- `skip_cfws` helper for use between tokens
-- Optionally preserve comment text in parsed output for debugging
+Implemented:
+- `comment` NimbleParsec combinator with proper nesting and quoted-pair support
+- `parse_comment/1` public parser function for testing
+- `strip_comments/1` helper that removes comments while preserving quoted-strings
+- Applied to `parse_content_type/1` and `parse_disposition_params/1`
 
 ---
 
