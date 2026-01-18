@@ -196,6 +196,59 @@ defmodule Mailex.ParserTest do
     end
   end
 
+  describe "RFC 5322 §2.2.3 header unfolding (item 1.2)" do
+    test "unfolding replaces CRLF+WSP with single space without trimming" do
+      # RFC 5322 §2.2.3: unfolding is simply removing any CRLF that is immediately
+      # followed by WSP (space or tab). The WSP is kept as part of the unfolded value.
+      # Current bug: String.trim/1 removes meaningful leading/trailing spaces
+      raw = "From: sender@example.com\nSubject: Hello  \n World\n\nBody.\n"
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      # After unfolding "Hello  \n World" should become "Hello   World"
+      # (the leading space on continuation line replaces CRLF, keeping "Hello  " + " World")
+      assert message.headers["subject"] == "Hello   World"
+    end
+
+    test "preserves whitespace inside quoted-strings during unfolding" do
+      # Folded header with quoted-string containing spaces that must not be trimmed
+      raw = "From: sender@example.com\nContent-Type: text/plain; name=\"  file  \n with spaces  \"\n\nBody.\n"
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      # The quoted-string value should preserve internal spaces
+      assert message.content_type.params["name"] == "  file   with spaces  "
+    end
+
+    test "unfolding does not collapse multiple continuation lines improperly" do
+      # Multiple continuation lines, each with leading WSP
+      raw = "From: sender@example.com\nSubject: Line1\n \n Line3\n\nBody.\n"
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      # Each CRLF+WSP becomes the single WSP character from the continuation
+      assert message.headers["subject"] == "Line1  Line3"
+    end
+  end
+
+  describe "RFC 5322 §2.2 malformed header handling (item 1.3)" do
+    test "continues parsing headers past malformed line until blank line" do
+      # A line without ':' in the middle of headers should not terminate header parsing
+      # The parser should detect end-of-headers strictly by blank line per RFC 5322 §2.2
+      raw = "From: sender@example.com\nMalformed line without colon\nTo: recipient@example.com\n\nBody.\n"
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      # Both From and To should be parsed; malformed line may be ignored or attached to From
+      assert message.headers["from"] == "sender@example.com"
+      assert message.headers["to"] == "recipient@example.com"
+    end
+
+    test "blank line marks end of headers even with prior malformed lines" do
+      raw = "From: sender@example.com\nBad line\nSubject: Test\n\nBody content here.\n"
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.headers["subject"] == "Test"
+      assert message.body =~ "Body content here"
+    end
+  end
+
   describe "RFC 5322 §3.2.4 quoted-string parsing" do
     test "handles empty quoted-string" do
       raw = """

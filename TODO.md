@@ -8,7 +8,7 @@ This document lists the gaps between the current Mailex parser implementation an
 
 ### 1.2 Header unfolding trims whitespace incorrectly
 
-**Status:** Partially Implemented (buggy)
+**Status:** ✅ Implemented
 
 **Problem:** `join_field_body/1` uses `String.trim/1` on each line before joining with `" "`. RFC unfolding should replace `CRLF` + WSP with a single space without trimming other whitespace. Current behavior:
 - Removes meaningful leading/trailing spaces inside quoted-strings or comments
@@ -28,7 +28,7 @@ This document lists the gaps between the current Mailex parser implementation an
 
 ### 1.3 Malformed header lines terminate parsing prematurely
 
-**Status:** Not Implemented
+**Status:** ✅ Implemented
 
 **Problem:** Parser stops headers when `header_field` fails. Any malformed header line (missing `:`) prematurely ends headers and treats remainder as body. Robust parsers should detect end-of-headers strictly by a blank line.
 

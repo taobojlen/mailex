@@ -65,12 +65,16 @@ defmodule Mailex.Parser do
     |> reduce({:erlang, :list_to_binary, []})
 
   # A continuation line starts with whitespace after CRLF
+  # RFC 5322 §2.2.3: Unfolding replaces CRLF+WSP with single space
+  # We capture first WSP as the fold character, rest of WSP + line content follow
   continuation =
     crlf
     |> ignore()
-    |> concat(times(wsp, min: 1) |> reduce({:erlang, :list_to_binary, []}))
+    |> ascii_char([?\s, ?\t])
+    |> reduce({:erlang, :list_to_binary, []})
+    |> optional(times(wsp, min: 1) |> reduce({:erlang, :list_to_binary, []}))
     |> concat(field_body_line)
-    |> reduce({Enum, :join, [""]})
+    |> reduce({__MODULE__, :join_continuation, []})
 
   field_body =
     field_body_line
@@ -85,12 +89,24 @@ defmodule Mailex.Parser do
     |> concat(field_body)
     |> wrap()
 
+  # RFC 5322 §2.2: Malformed line (no colon) - skip it but continue parsing
+  # This ensures we detect end-of-headers by blank line, not by parse failure
+  malformed_line =
+    lookahead_not(crlf)
+    |> repeat(ascii_char([not: ?\r, not: ?\n]))
+    |> ignore()
+
+  # A header line is either a valid header field or a malformed line to skip
+  header_or_malformed =
+    choice([
+      header_field,
+      malformed_line
+    ])
+    |> ignore(crlf)
+
   # All headers end with blank line
   headers =
-    repeat(
-      header_field
-      |> ignore(crlf)
-    )
+    repeat(header_or_malformed)
     |> tag(:headers)
 
   # The full message (headers + blank line + body)
@@ -151,11 +167,15 @@ defmodule Mailex.Parser do
   end
   defp skip_mbox_line(raw), do: raw
 
+  # Join continuation line parts: first WSP (fold char) + optional more WSP + line content
+  # RFC 5322 §2.2.3: The CRLF is removed, but the leading WSP is preserved
+  def join_continuation(parts), do: Enum.join(parts, "")
+
   # Join field body parts (initial line + continuations)
+  # RFC 5322 §2.2.3: Do NOT trim whitespace - just concatenate parts
+  # Each continuation already starts with its leading WSP (the fold replacement)
   def join_field_body(parts) do
-    parts
-    |> Enum.map(&String.trim/1)
-    |> Enum.join(" ")
+    Enum.join(parts, "")
   end
 
   # Helper to wrap nested comment content in parentheses for reconstruction
