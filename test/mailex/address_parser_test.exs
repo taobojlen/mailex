@@ -87,7 +87,12 @@ defmodule Mailex.AddressParserTest do
       assert {:ok, result} = AddressParser.parse_mailbox("john@example.com (John Doe)")
       assert result.type == :mailbox
       assert result.address == "john@example.com"
-      # Comment is stripped but address is still parsed
+      # Per RFC 5322, comments are stripped (not converted to display-name)
+      # The address must be extracted cleanly without the comment text
+      assert result.name == nil
+      # Verify the comment text doesn't leak into the address
+      refute String.contains?(result.address, "John")
+      refute String.contains?(result.address, "(")
     end
 
     test "parses mailbox with comment in display-name" do

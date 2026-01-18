@@ -65,19 +65,52 @@ defmodule Mailex.ParserTest do
       assert {:ok, message} = Mailex.Parser.parse(raw)
 
       assert message.content_type.type == "multipart"
-      # Should have parts with base64 encoding
-      assert Enum.any?(message.parts, fn part ->
-        part.encoding == "base64"
-      end)
+      assert message.content_type.subtype == "mixed"
+      assert length(message.parts) == 3
+
+      # Part 1: text/plain preamble
+      [text_part, gif1, gif2] = message.parts
+      assert text_part.content_type.type == "text"
+      assert text_part.content_type.subtype == "plain"
+      assert text_part.encoding == "7bit"
+      assert String.contains?(text_part.body, "3d-compress.gif")
+      assert String.contains?(text_part.body, "3d-eye.gif")
+
+      # Part 2: base64 encoded GIF with filename from Content-Disposition
+      assert gif1.content_type.type == "image"
+      assert gif1.content_type.subtype == "gif"
+      assert gif1.encoding == "base64"
+      assert gif1.filename == "3d-compress.gif"
+      # Verify actual decoding: GIF files start with "GIF89a" or "GIF87a"
+      assert String.starts_with?(gif1.body, "GIF")
+
+      # Part 3: base64 encoded GIF with filename from Content-Type name param
+      assert gif2.content_type.type == "image"
+      assert gif2.content_type.subtype == "gif"
+      assert gif2.encoding == "base64"
+      assert gif2.filename == "3d-eye.gif"
+      assert String.starts_with?(gif2.body, "GIF")
     end
 
     test "handles quoted-printable encoding" do
       raw = File.read!(Path.join(@fixtures_dir, "german-qp.msg"))
       assert {:ok, message} = Mailex.Parser.parse(raw)
 
-      # Should handle quoted-printable content
-      assert message.encoding == "quoted-printable" or
-             String.contains?(raw, "quoted-printable")
+      # Verify encoding metadata
+      assert message.encoding == "quoted-printable"
+      assert message.content_type.type == "text"
+      assert message.content_type.subtype == "plain"
+      assert message.content_type.params["charset"] == "iso-8859-15"
+
+      # Verify header decoding (RFC 2047 encoded-word in From header)
+      assert message.headers["from"] =~ "Jörn"
+
+      # Verify body is properly decoded with correct German characters
+      # ISO-8859-15: F6=ö, E4=ä, FC=ü, DF=ß
+      assert String.contains?(message.body, "Sönderz")
+      assert String.contains?(message.body, "Grüße")
+      assert String.contains?(message.body, "Jörn")
+      assert String.contains?(message.body, "Testnachricht")
     end
   end
 
@@ -341,9 +374,29 @@ defmodule Mailex.ParserTest do
       raw = File.read!(Path.join(@fixtures_dir, "multi-simple.msg"))
       assert {:ok, message} = Mailex.Parser.parse(raw)
 
+      # Verify top-level structure
       assert message.content_type.type == "multipart"
-      assert is_list(message.parts)
-      assert length(message.parts) >= 2
+      assert message.content_type.subtype == "mixed"
+      assert message.headers["from"] =~ "Nathaniel Borenstein"
+      assert message.headers["to"] =~ "Ned Freed"
+      assert message.headers["subject"] == "Sample message"
+
+      # Exactly 2 parts in this message
+      assert length(message.parts) == 2
+      [part1, part2] = message.parts
+
+      # Part 1: implicitly typed (no Content-Type header defaults to text/plain)
+      assert part1.content_type.type == "text"
+      assert part1.content_type.subtype == "plain"
+      assert String.contains?(part1.body, "implicitly typed plain ASCII text")
+      assert String.contains?(part1.body, "does NOT end with a linebreak")
+
+      # Part 2: explicitly typed with charset
+      assert part2.content_type.type == "text"
+      assert part2.content_type.subtype == "plain"
+      assert part2.content_type.params["charset"] == "us-ascii"
+      assert String.contains?(part2.body, "explicitly typed plain ASCII text")
+      assert String.contains?(part2.body, "DOES end with a linebreak")
     end
 
     test "handles nested multipart (multipart within multipart)" do
