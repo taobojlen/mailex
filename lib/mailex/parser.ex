@@ -306,7 +306,8 @@ defmodule Mailex.Parser do
   end
 
   # Parse Content-Type header
-  defp parse_content_type(nil), do: %{type: "text", subtype: "plain", params: %{}}
+  # RFC 2045 §5.2: Default is text/plain; charset=us-ascii
+  defp parse_content_type(nil), do: %{type: "text", subtype: "plain", params: %{"charset" => "us-ascii"}}
   defp parse_content_type(value) when is_list(value), do: parse_content_type(List.first(value))
   defp parse_content_type(value) do
     # Strip RFC 5322 comments before tokenizing

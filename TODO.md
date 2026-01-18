@@ -65,7 +65,7 @@ This document lists the gaps between the current Mailex parser implementation an
 
 ### 3.1 Content-Type parsing breaks on quoted-strings and comments
 
-**Status:** ✅ Implemented (quoted-strings fixed, comments not yet handled)
+**Status:** ✅ Implemented
 
 **Problem:** Using `String.split(value, ";")` and `String.split(part, "=", parts: 2)` fails when:
 - Parameter values are quoted-strings containing `;` or `=` (legal)
@@ -87,7 +87,7 @@ Implement a real `content-type` value parser with NimbleParsec:
 
 ### 3.2 Missing Content-Type defaults are incomplete
 
-**Status:** Partially Implemented
+**Status:** ✅ Implemented
 
 **Problem:** Default type is applied for `multipart/digest` parts (`message/rfc822`), but RFC 2045/2046 defaults for missing Content-Type in general are not consistently applied.
 
@@ -361,24 +361,24 @@ Suggested order based on impact and dependencies:
 4. ✅ **Phase 2 complete** ~~Implement `token` parser per RFC 2045~~
 
 ### Phase 3: MIME Parsing Rebuild
-5. **3.1** Rebuild Content-Type parser using primitives
-6. **9.1** Rebuild Content-Disposition parser
-7. **9.2** Fix RFC 2231 edge cases
+5. ✅ **3.1** ~~Rebuild Content-Type parser using primitives~~
+6. ✅ **3.2** ~~Complete Content-Type defaults~~
+7. **9.1** Rebuild Content-Disposition parser
+8. **9.2** Fix RFC 2231 edge cases
 
 ### Phase 4: Structured Header Parsing
-8. **2.1** Implement Message-ID parsing
+9. **2.1** Implement Message-ID parsing
 
 ### Phase 5: Enhanced Features
-9. **8.1** Add multipart/related root resolution
-10. **10.1** Fix RFC 2047 charset conversion
-11. **10.2** Apply RFC 2047 to more headers
-12. **7.1** Full RFC 6532 UTF-8 header support
-13. **7.2** Internationalized address support
+10. **8.1** Add multipart/related root resolution
+11. **10.1** Fix RFC 2047 charset conversion
+12. **10.2** Apply RFC 2047 to more headers
+13. **7.1** Full RFC 6532 UTF-8 header support
+14. **7.2** Internationalized address support
 
 ### Phase 6: Robustness
-14. **4.1** Add obsolete syntax tolerance
-15. **1.3** Improve malformed header handling
-16. **3.2** Complete Content-Type defaults
+15. **4.1** Add obsolete syntax tolerance
+16. **1.3** Improve malformed header handling
 17. **11.1** Improve multipart boundary parsing
 
 ---

@@ -447,6 +447,41 @@ defmodule Mailex.ParserTest do
       assert message.content_type.subtype == "plain"
     end
 
+    test "missing Content-Type defaults to charset=us-ascii per RFC 2045 §5.2" do
+      # RFC 2045 §5.2: Default Content-Type is text/plain; charset=us-ascii
+      raw = """
+      From: sender@example.com
+      Subject: No content type
+
+      Plain text body.
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert message.content_type.type == "text"
+      assert message.content_type.subtype == "plain"
+      assert message.content_type.params["charset"] == "us-ascii"
+    end
+
+    test "multipart parts without Content-Type default to text/plain; charset=us-ascii" do
+      # RFC 2045 §5.2: Default applies to parts as well (except multipart/digest)
+      raw = """
+      From: sender@example.com
+      Content-Type: multipart/mixed; boundary="boundary"
+
+      --boundary
+
+      Part without Content-Type
+      --boundary--
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert length(message.parts) == 1
+      part = hd(message.parts)
+      assert part.content_type.type == "text"
+      assert part.content_type.subtype == "plain"
+      assert part.content_type.params["charset"] == "us-ascii"
+    end
+
     test "handles empty body" do
       raw = """
       From: sender@example.com
