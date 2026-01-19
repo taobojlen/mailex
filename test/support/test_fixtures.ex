@@ -27,6 +27,48 @@ defmodule Mailex.TestFixtures do
   end
 
   @doc """
+  Reads a .eml file from the gen_smtp fixtures directory.
+  """
+  def load_gen_smtp_eml!(filename) do
+    read!(Path.join(["gen_smtp", "eml", filename]))
+  end
+
+  @doc """
+  Lists all .eml files in the gen_smtp fixtures directory.
+  """
+  def list_gen_smtp_eml_files! do
+    dir = Path.join([@conformance_dir, "gen_smtp", "eml"])
+
+    dir
+    |> File.ls!()
+    |> Enum.filter(&String.ends_with?(&1, ".eml"))
+    |> Enum.sort()
+  end
+
+  @doc """
+  Loads the gen_smtp test cases from the manifest file.
+  """
+  def load_gen_smtp_cases! do
+    path = Path.join([@conformance_dir, "gen_smtp", "tests.exs"])
+    {cases, _binding} = Code.eval_file(path)
+    cases
+  end
+
+  @doc """
+  Loads documented deviations for gen_smtp fixtures.
+  """
+  def load_gen_smtp_deviations! do
+    path = Path.join([@conformance_dir, "gen_smtp", "deviations.exs"])
+
+    if File.exists?(path) do
+      {deviations, _binding} = Code.eval_file(path)
+      deviations
+    else
+      %{}
+    end
+  end
+
+  @doc """
   Decodes Unicode "control pictures" (U+2400 block) into actual ASCII control characters.
 
   The isemail test suite uses these Unicode symbols to represent ASCII control

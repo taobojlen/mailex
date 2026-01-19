@@ -67,22 +67,42 @@ Validate Mailex against real-world email parsing edge cases using test fixtures 
 
 **Task:** Compare behavior with elixir-mail on shared fixtures
 
-### 2.3 gen_smtp fixtures
+### 2.3 gen_smtp fixtures ✅ DONE
 
 **Source:** [gen-smtp/gen_smtp](https://github.com/gen-smtp/gen_smtp/tree/master/test/fixtures)
 
-**Format:** .eml files
+**Format:** .eml files (27 files)
 
-**Task:** Port relevant Erlang/Elixir ecosystem fixtures
+**Categories covered:**
+- Plain text messages (with/without MIME headers)
+- Multipart messages (alternative, mixed)
+- Malformed boundary handling (mismatched, missing, broken)
+- Attachments (text, image, multiple)
+- Nested messages (message/rfc822)
+- Unicode encoding (subjects, bodies, attachment names)
+
+**Implementation:**
+- `test/fixtures/conformance/gen_smtp/eml/` - 27 .eml fixtures
+- `test/fixtures/conformance/gen_smtp/tests.exs` - Test manifest
+- `test/mailex/conformance/gen_smtp_message_test.exs` - 30 ExUnit tests
+- Deviations tracked in `deviations.exs`
 
 ---
 
 ## 3. Priority Order
 
 1. ~~**isemail address tests**~~ ✅ Done (279 tests)
-2. **Ruby mail error_emails** - Real-world malformed messages
-3. **Ruby mail mime_emails** - MIME edge cases
-4. **Elixir-mail fixtures** - Same ecosystem comparison
+2. ~~**gen_smtp fixtures**~~ ✅ Done (27 fixtures, 30 tests)
+3. **Ruby mail error_emails** - Real-world malformed messages
+4. **Ruby mail mime_emails** - MIME edge cases
+5. **Elixir-mail fixtures** - Same ecosystem comparison
+
+### Known Behavioral Differences
+
+Mailex is more **lenient** than gen_smtp on malformed boundaries:
+- `rich-text-no-boundary.eml`: gen_smtp throws `no_boundary`, Mailex parses
+- `rich-text-missing-last-boundary.eml`: gen_smtp throws `missing_last_boundary`, Mailex parses
+- `rich-text-broken-last-boundary.eml`: gen_smtp throws `missing_last_boundary`, Mailex parses
 
 ---
 

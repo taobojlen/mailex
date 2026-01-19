@@ -1,0 +1,3 @@
+# Prevent line-ending normalization for email fixtures
+# Boundary parsing and header folding are sensitive to CRLF vs LF
+*.eml -text
