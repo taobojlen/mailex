@@ -51,27 +51,32 @@ Validate Mailex against real-world email parsing edge cases using test fixtures 
 
 ---
 
-### 2.2 Ruby mail gem fixtures
+### 2.2 Ruby mail gem fixtures ✅ DONE (error_emails)
 
 **Source:** [mikel/mail](https://github.com/mikel/mail/tree/master/spec/fixtures/emails)
 
 **Format:** .eml files organized by category
 
-**Categories:**
-- `error_emails/` - 28 malformed email scenarios:
-  - Bad date headers
-  - Bad encoded subjects
-  - Unparseable From fields
-  - Content-Transfer-Encoding edge cases
-  - Missing body/headers
-  - Multiple Content-Types
-  - Invalid character encodings
+**Categories covered (error_emails/):**
+- Bad date headers
+- Bad encoded subjects
+- Unparseable From/To fields
+- Content-Transfer-Encoding edge cases (7-bit, empty, spam, x-uuencode, etc.)
+- Missing body/headers
+- Multiple Content-Types
+- Invalid character encodings
+
+**Implementation:**
+- `test/fixtures/conformance/ruby_mail/eml/` - 28 .eml fixtures
+- `test/fixtures/conformance/ruby_mail/tests.exs` - Test manifest
+- `test/mailex/conformance/ruby_mail_message_test.exs` - 31 ExUnit tests
+- Deviations tracked in `deviations.exs`
+
+**Remaining categories (not yet ported):**
 - `mime_emails/` - MIME structure edge cases
 - `multi_charset/` - Character encoding variations
 - `rfc2822/` - Standards compliance
 - `rfc6532/` - Internationalized email
-
-**Task:** Port relevant .eml fixtures and create ExUnit tests
 
 ### 2.3 Elixir ecosystem fixtures
 
@@ -115,7 +120,7 @@ Validate Mailex against real-world email parsing edge cases using test fixtures 
 1. ~~**isemail address tests**~~ ✅ Done (279 tests)
 2. ~~**gen_smtp fixtures**~~ ✅ Done (27 fixtures, 30 tests)
 3. ~~**SpamScope mail-parser fixtures**~~ ✅ Done (21 fixtures, 24 tests)
-4. **Ruby mail error_emails** - Real-world malformed messages
+4. ~~**Ruby mail error_emails**~~ ✅ Done (28 fixtures, 31 tests)
 5. **Ruby mail mime_emails** - MIME edge cases
 6. **Elixir-mail fixtures** - Same ecosystem comparison
 

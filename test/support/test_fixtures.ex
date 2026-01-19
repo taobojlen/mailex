@@ -112,6 +112,50 @@ defmodule Mailex.TestFixtures do
     end
   end
 
+  # Ruby mail gem fixtures
+
+  @doc """
+  Reads a .eml file from the ruby_mail fixtures directory.
+  """
+  def load_ruby_mail_eml!(filename) do
+    read!(Path.join(["ruby_mail", "eml", filename]))
+  end
+
+  @doc """
+  Lists all .eml files in the ruby_mail fixtures directory.
+  """
+  def list_ruby_mail_eml_files! do
+    dir = Path.join([@conformance_dir, "ruby_mail", "eml"])
+
+    dir
+    |> File.ls!()
+    |> Enum.filter(&String.ends_with?(&1, ".eml"))
+    |> Enum.sort()
+  end
+
+  @doc """
+  Loads the ruby_mail test cases from the manifest file.
+  """
+  def load_ruby_mail_cases! do
+    path = Path.join([@conformance_dir, "ruby_mail", "tests.exs"])
+    {cases, _binding} = Code.eval_file(path)
+    cases
+  end
+
+  @doc """
+  Loads documented deviations for ruby_mail fixtures.
+  """
+  def load_ruby_mail_deviations! do
+    path = Path.join([@conformance_dir, "ruby_mail", "deviations.exs"])
+
+    if File.exists?(path) do
+      {deviations, _binding} = Code.eval_file(path)
+      deviations
+    else
+      %{}
+    end
+  end
+
   @doc """
   Decodes Unicode "control pictures" (U+2400 block) into actual ASCII control characters.
 
