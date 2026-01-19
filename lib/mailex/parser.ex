@@ -723,37 +723,101 @@ defmodule Mailex.Parser do
   end
   defp strip_angle_brackets(_), do: nil
 
-  # Split multipart body into parts
-  # RFC 2046: Boundaries must appear at the start of a line (after CRLF/LF)
+  # Split multipart body into parts using line-by-line parsing
+  # RFC 2046 §5.1.1: Boundaries must appear at start of line with only LWSP after
   defp split_multipart(body, boundary) do
     delimiter = "--" <> boundary
+    close_delimiter = delimiter <> "--"
 
-    # Build regex that matches boundary at start of line (or start of body)
-    # The boundary is preceded by CRLF or LF (or nothing at start of body)
-    escaped_delimiter = Regex.escape(delimiter)
-    boundary_regex = Regex.compile!("(?:^|\\r?\\n)" <> escaped_delimiter)
+    lines = split_lines_for_multipart(body)
+    parse_multipart_lines(lines, delimiter, close_delimiter, :preamble, [], [])
+  end
 
-    # Split by boundary at line start
-    parts = Regex.split(boundary_regex, body)
+  # Split body into lines, preserving each line's content without terminators
+  defp split_lines_for_multipart(body) do
+    # Split on CRLF or LF, keeping empty lines
+    String.split(body, ~r/\r?\n/, include_captures: false)
+  end
 
-    # First part is preamble (ignore), last part may contain epilogue
-    parts = case parts do
-      [_preamble | rest] -> rest
-      [] -> []
+  # Recursive state machine for parsing multipart lines
+  # States: :preamble (before first delimiter), :in_part (inside a part)
+  defp parse_multipart_lines([], _delimiter, _close, _state, current_lines, parts) do
+    # End of input - finalize any current part
+    case current_lines do
+      [] -> Enum.reverse(parts)
+      _ -> Enum.reverse([finalize_part(current_lines) | parts])
     end
+  end
 
-    # Process parts, stopping at end delimiter
-    parts
-    |> Enum.take_while(fn part ->
-      # Check if this is the end marker (starts with --)
-      trimmed = String.trim_leading(part)
-      not String.starts_with?(trimmed, "--")
-    end)
-    |> Enum.map(fn part ->
-      # Remove any trailing whitespace/tabs after the boundary, then the newline
-      part = Regex.replace(~r/^[ \t]*\r?\n/, part, "")
-      part
-    end)
+  defp parse_multipart_lines([line | rest], delimiter, close, state, current_lines, parts) do
+    cond do
+      is_close_boundary_line?(line, close) ->
+        # Close delimiter - finalize current part and stop
+        case state do
+          :preamble ->
+            Enum.reverse(parts)
+          :in_part ->
+            Enum.reverse([finalize_part(current_lines) | parts])
+        end
+
+      is_boundary_line?(line, delimiter) ->
+        # Regular delimiter - start new part
+        case state do
+          :preamble ->
+            # Transition from preamble to first part
+            parse_multipart_lines(rest, delimiter, close, :in_part, [], parts)
+          :in_part ->
+            # End current part, start new one
+            new_parts = [finalize_part(current_lines) | parts]
+            parse_multipart_lines(rest, delimiter, close, :in_part, [], new_parts)
+        end
+
+      true ->
+        # Regular content line
+        case state do
+          :preamble ->
+            # Ignore preamble content
+            parse_multipart_lines(rest, delimiter, close, :preamble, [], parts)
+          :in_part ->
+            # Add to current part
+            parse_multipart_lines(rest, delimiter, close, :in_part, [line | current_lines], parts)
+        end
+    end
+  end
+
+  # Check if line is an exact boundary delimiter (RFC 2046 §5.1.1)
+  # Line must start with delimiter, remainder must be empty or only LWSP
+  defp is_boundary_line?(line, delimiter) do
+    delimiter_len = String.length(delimiter)
+    if String.starts_with?(line, delimiter) do
+      remainder = String.slice(line, delimiter_len, String.length(line) - delimiter_len)
+      lwsp_only?(remainder)
+    else
+      false
+    end
+  end
+
+  # Check if line is a close-delimiter (RFC 2046 §5.1.1)
+  # Line must start with delimiter + "--", remainder must be empty or only LWSP
+  defp is_close_boundary_line?(line, close_delimiter) do
+    close_len = String.length(close_delimiter)
+    if String.starts_with?(line, close_delimiter) do
+      remainder = String.slice(line, close_len, String.length(line) - close_len)
+      lwsp_only?(remainder)
+    else
+      false
+    end
+  end
+
+  # Check if string contains only linear whitespace (spaces and tabs) or is empty
+  defp lwsp_only?(""), do: true
+  defp lwsp_only?(str), do: Regex.match?(~r/^[ \t]*$/, str)
+
+  # Join accumulated lines back into part body content
+  defp finalize_part(lines) do
+    lines
+    |> Enum.reverse()
+    |> Enum.join("\r\n")
   end
 
   # Parse a single part

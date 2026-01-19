@@ -352,7 +352,7 @@ Implemented:
 
 ### 11.1 Boundary delimiter parsing not fully RFC-compliant
 
-**Status:** Partially Implemented (edge cases)
+**Status:** ✅ Implemented
 
 **Problem:** `split_multipart/2` uses regex to detect boundary at start-of-line but doesn't enforce full delimiter-line structure:
 - Boundary delimiter line is `--boundary` + optional transport padding (LWSP) + CRLF
@@ -363,10 +363,14 @@ Implemented:
 - RFC 2046 §5.1.1 — Common Syntax (boundary delimiter line definition)
 
 **Implementation:**
-Parse multipart by scanning line-by-line:
-- Match lines that are exactly delimiter or close-delimiter
-- Allow trailing whitespace (transport padding) on delimiter lines
-- More correct and simpler than regex splitting
+Implemented:
+- Replaced regex-based `split_multipart/2` with line-by-line parser
+- `parse_multipart_lines/6` recursive state machine (`:preamble` → `:in_part`)
+- `is_boundary_line?/2` validates delimiter with LWSP-only suffix check
+- `is_close_boundary_line?/2` validates close-delimiter (`--boundary--`)
+- `lwsp_only?/1` ensures only spaces/tabs follow boundary (per RFC 2046 §5.1.1)
+- Boundaries must be exact matches, not prefixes (e.g., `--abcX` won't match boundary `abc`)
+- Transport padding (trailing whitespace) properly allowed on delimiter lines
 
 ---
 
@@ -400,8 +404,8 @@ Suggested order based on impact and dependencies:
 
 ### Phase 6: Robustness
 15. **4.1** Add obsolete syntax tolerance
-16. **1.3** Improve malformed header handling
-17. **11.1** Improve multipart boundary parsing
+16. ✅ **1.3** ~~Improve malformed header handling~~
+17. ✅ **11.1** ~~Improve multipart boundary parsing~~
 
 ---
 

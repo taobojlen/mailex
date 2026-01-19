@@ -426,6 +426,83 @@ defmodule Mailex.ParserTest do
     end
   end
 
+  describe "multipart boundary edge cases" do
+    @tag :boundary
+    test "handles transport padding (spaces/tabs) after boundary" do
+      # Boundary line has trailing spaces before CRLF
+      msg = "Content-Type: multipart/mixed; boundary=abc\r\n\r\n--abc   \t\r\nContent-Type: text/plain\r\n\r\npart1\r\n--abc--\r\n"
+      {:ok, parsed} = Mailex.Parser.parse(msg)
+      assert length(parsed.parts) == 1
+      assert parsed.parts |> hd() |> Map.get(:body) == "part1"
+    end
+
+    @tag :boundary
+    test "boundary appearing mid-line in body does not split" do
+      # "--abc" appears in body but not at line start
+      msg = "Content-Type: multipart/mixed; boundary=abc\r\n\r\n--abc\r\nContent-Type: text/plain\r\n\r\ntext with --abc in middle\r\n--abc--\r\n"
+      {:ok, parsed} = Mailex.Parser.parse(msg)
+      assert length(parsed.parts) == 1
+      assert parsed.parts |> hd() |> Map.get(:body) =~ "--abc in middle"
+    end
+
+    @tag :boundary
+    test "near-miss boundary (extra char) does not split" do
+      msg = "Content-Type: multipart/mixed; boundary=abc\r\n\r\n--abc\r\nContent-Type: text/plain\r\n\r\npart1\r\n--abcX\r\nstill part1\r\n--abc--\r\n"
+      {:ok, parsed} = Mailex.Parser.parse(msg)
+      assert length(parsed.parts) == 1
+      body = parsed.parts |> hd() |> Map.get(:body)
+      assert body =~ "--abcX"
+      assert body =~ "still part1"
+    end
+
+    @tag :boundary
+    test "boundary with non-whitespace suffix does not split" do
+      # "--abc extra" should not be treated as boundary
+      msg = "Content-Type: multipart/mixed; boundary=abc\r\n\r\n--abc\r\nContent-Type: text/plain\r\n\r\npart1\r\n--abc extra\r\nstill part1\r\n--abc--\r\n"
+      {:ok, parsed} = Mailex.Parser.parse(msg)
+      assert length(parsed.parts) == 1
+      body = parsed.parts |> hd() |> Map.get(:body)
+      assert body =~ "--abc extra"
+    end
+
+    @tag :boundary
+    test "close-delimiter with trailing whitespace" do
+      msg = "Content-Type: multipart/mixed; boundary=abc\r\n\r\n--abc\r\nContent-Type: text/plain\r\n\r\npart1\r\n--abc--  \t\r\nepilogue\r\n"
+      {:ok, parsed} = Mailex.Parser.parse(msg)
+      assert length(parsed.parts) == 1
+    end
+
+    @tag :boundary
+    test "handles LF-only line endings" do
+      msg = "Content-Type: multipart/mixed; boundary=abc\n\n--abc\nContent-Type: text/plain\n\npart1\n--abc--\n"
+      {:ok, parsed} = Mailex.Parser.parse(msg)
+      assert length(parsed.parts) == 1
+    end
+
+    @tag :boundary
+    test "multiple parts with strict boundary matching" do
+      msg = "Content-Type: multipart/mixed; boundary=BOUND\r\n\r\npreamble\r\n--BOUND\r\nContent-Type: text/plain\r\n\r\npart1\r\n--BOUND  \r\nContent-Type: text/html\r\n\r\npart2\r\n--BOUND--\r\nepilogue\r\n"
+      {:ok, parsed} = Mailex.Parser.parse(msg)
+      assert length(parsed.parts) == 2
+    end
+
+    @tag :boundary
+    test "empty parts" do
+      msg = "Content-Type: multipart/mixed; boundary=abc\r\n\r\n--abc\r\nContent-Type: text/plain\r\n\r\n\r\n--abc--\r\n"
+      {:ok, parsed} = Mailex.Parser.parse(msg)
+      assert length(parsed.parts) == 1
+      assert parsed.parts |> hd() |> Map.get(:body) == ""
+    end
+
+    @tag :boundary
+    test "boundary containing regex special characters" do
+      # Boundary with . + * which are regex special chars
+      msg = "Content-Type: multipart/mixed; boundary=\"a.b+c*d\"\r\n\r\n--a.b+c*d\r\nContent-Type: text/plain\r\n\r\npart1\r\n--a.b+c*d--\r\n"
+      {:ok, parsed} = Mailex.Parser.parse(msg)
+      assert length(parsed.parts) == 1
+    end
+  end
+
   describe "encoding handling" do
     test "decodes base64 body" do
       # Create a simple base64 message
