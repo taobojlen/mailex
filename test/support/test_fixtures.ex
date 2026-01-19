@@ -68,6 +68,50 @@ defmodule Mailex.TestFixtures do
     end
   end
 
+  # SpamScope mail-parser fixtures
+
+  @doc """
+  Reads a .eml file from the spamscope_mail_parser fixtures directory.
+  """
+  def load_spamscope_eml!(filename) do
+    read!(Path.join(["spamscope_mail_parser", "eml", filename]))
+  end
+
+  @doc """
+  Lists all .eml files in the spamscope_mail_parser fixtures directory.
+  """
+  def list_spamscope_eml_files! do
+    dir = Path.join([@conformance_dir, "spamscope_mail_parser", "eml"])
+
+    dir
+    |> File.ls!()
+    |> Enum.filter(&String.ends_with?(&1, ".eml"))
+    |> Enum.sort()
+  end
+
+  @doc """
+  Loads the spamscope_mail_parser test cases from the manifest file.
+  """
+  def load_spamscope_cases! do
+    path = Path.join([@conformance_dir, "spamscope_mail_parser", "tests.exs"])
+    {cases, _binding} = Code.eval_file(path)
+    cases
+  end
+
+  @doc """
+  Loads documented deviations for spamscope_mail_parser fixtures.
+  """
+  def load_spamscope_deviations! do
+    path = Path.join([@conformance_dir, "spamscope_mail_parser", "deviations.exs"])
+
+    if File.exists?(path) do
+      {deviations, _binding} = Code.eval_file(path)
+      deviations
+    else
+      %{}
+    end
+  end
+
   @doc """
   Decodes Unicode "control pictures" (U+2400 block) into actual ASCII control characters.
 

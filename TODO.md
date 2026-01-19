@@ -30,7 +30,28 @@ Validate Mailex against real-world email parsing edge cases using test fixtures 
 
 ## 2. Full Message Parsing Conformance
 
-### 2.1 Ruby mail gem fixtures
+### 2.1 SpamScope mail-parser fixtures ✅ DONE
+
+**Source:** [SpamScope/mail-parser](https://github.com/SpamScope/mail-parser/tree/develop/tests/mails)
+
+**Format:** .eml files (21 files)
+
+**Categories covered:**
+- Standard emails with various encodings (UTF-8, Cyrillic, French, GB2312)
+- Multipart messages (mixed, alternative, related)
+- Attachments (single, multiple, nested)
+- Character encoding edge cases (base64, quoted-printable)
+- Malformed emails with RFC violations (boundary defects)
+
+**Implementation:**
+- `test/fixtures/conformance/spamscope_mail_parser/eml/` - 21 .eml fixtures
+- `test/fixtures/conformance/spamscope_mail_parser/tests.exs` - Test manifest
+- `test/mailex/conformance/spamscope_mail_parser_message_test.exs` - 24 ExUnit tests
+- Deviations tracked in `deviations.exs` (GB2312 encoding, Outlook .msg)
+
+---
+
+### 2.2 Ruby mail gem fixtures
 
 **Source:** [mikel/mail](https://github.com/mikel/mail/tree/master/spec/fixtures/emails)
 
@@ -52,7 +73,7 @@ Validate Mailex against real-world email parsing edge cases using test fixtures 
 
 **Task:** Port relevant .eml fixtures and create ExUnit tests
 
-### 2.2 Elixir ecosystem fixtures
+### 2.3 Elixir ecosystem fixtures
 
 **Source:** [DockYard/elixir-mail](https://github.com/DockYard/elixir-mail/tree/master/test/fixtures)
 
@@ -67,7 +88,7 @@ Validate Mailex against real-world email parsing edge cases using test fixtures 
 
 **Task:** Compare behavior with elixir-mail on shared fixtures
 
-### 2.3 gen_smtp fixtures ✅ DONE
+### 2.4 gen_smtp fixtures ✅ DONE
 
 **Source:** [gen-smtp/gen_smtp](https://github.com/gen-smtp/gen_smtp/tree/master/test/fixtures)
 
@@ -93,9 +114,10 @@ Validate Mailex against real-world email parsing edge cases using test fixtures 
 
 1. ~~**isemail address tests**~~ ✅ Done (279 tests)
 2. ~~**gen_smtp fixtures**~~ ✅ Done (27 fixtures, 30 tests)
-3. **Ruby mail error_emails** - Real-world malformed messages
-4. **Ruby mail mime_emails** - MIME edge cases
-5. **Elixir-mail fixtures** - Same ecosystem comparison
+3. ~~**SpamScope mail-parser fixtures**~~ ✅ Done (21 fixtures, 24 tests)
+4. **Ruby mail error_emails** - Real-world malformed messages
+5. **Ruby mail mime_emails** - MIME edge cases
+6. **Elixir-mail fixtures** - Same ecosystem comparison
 
 ### Known Behavioral Differences
 
