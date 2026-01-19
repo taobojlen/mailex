@@ -6,11 +6,11 @@ Validate Mailex against real-world email parsing edge cases using test fixtures 
 
 ## 1. Email Address Parsing Conformance
 
-### 1.1 isemail Test Suite
+### 1.1 isemail Test Suite ✅ DONE
 
 **Source:** [dominicsayers/isemail](https://github.com/dominicsayers/isemail/blob/master/test/tests-original.xml)
 
-**Format:** XML with 156+ test cases
+**Format:** XML with 279 test cases
 
 **Categories covered:**
 - Valid RFC 5322 addresses
@@ -20,7 +20,11 @@ Validate Mailex against real-world email parsing edge cases using test fixtures 
 - Deprecated/obsolete forms (mixed quoted/unquoted atoms)
 - Format errors (consecutive dots, unclosed quotes, etc.)
 
-**Task:** Convert XML test cases to ExUnit tests for `AddressParser`
+**Implementation:**
+- `test/fixtures/conformance/isemail/` - XML source and parsed fixtures
+- `test/mailex/conformance/isemail_addr_spec_test.exs` - 279 ExUnit tests
+- `test/support/test_fixtures.ex` - Fixture loading utilities
+- Known deviations tracked in `deviations.exs` (obs-local-part, CFWS, length/hyphen semantics)
 
 ---
 
@@ -75,7 +79,7 @@ Validate Mailex against real-world email parsing edge cases using test fixtures 
 
 ## 3. Priority Order
 
-1. **isemail address tests** - Most comprehensive, well-documented
+1. ~~**isemail address tests**~~ ✅ Done (279 tests)
 2. **Ruby mail error_emails** - Real-world malformed messages
 3. **Ruby mail mime_emails** - MIME edge cases
 4. **Elixir-mail fixtures** - Same ecosystem comparison
