@@ -7,7 +7,11 @@ defmodule Mailex.MixProject do
       version: "0.1.0",
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
-      deps: deps()
+      deps: deps(),
+      name: "Mailex",
+      source_url: "https://github.com/taobojlen/mailex",
+      description: description(),
+      package: package()
     ]
   end
 
@@ -24,6 +28,18 @@ defmodule Mailex.MixProject do
       {:nimble_parsec, "~> 1.4"},
       {:codepagex, "~> 0.1.6"},
       {:jason, "~> 1.4", only: :test}
+    ]
+  end
+
+  defp description do
+    "An experimental email parser."
+  end
+
+  defp package do
+    [
+      name: "mailex",
+      licenses: ["MIT"],
+      links: %{"GitHub" => "https://github.com/taobojlen/mailex"}
     ]
   end
 end
