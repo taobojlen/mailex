@@ -4,7 +4,7 @@ defmodule Mailex.MixProject do
   def project do
     [
       app: :mailex,
-      version: "0.1.0",
+      version: "0.1.1",
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
@@ -26,7 +26,7 @@ defmodule Mailex.MixProject do
   defp deps do
     [
       {:nimble_parsec, "~> 1.4"},
-      {:codepagex, "~> 0.1.6"},
+      {:codepagex, "~> 0.1.13"},
       {:jason, "~> 1.4", only: :test}
     ]
   end
