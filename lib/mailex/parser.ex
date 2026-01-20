@@ -162,10 +162,10 @@ defmodule Mailex.Parser do
 
   defparsec :parse_msg_id_list, msg_id_list
 
-  # Helper to join no-fold-literal parts: "[" + content + "]"
+  @doc false
   def join_no_fold_literal(["[", content, "]"]), do: "[" <> content <> "]"
 
-  # Helper to join msg-id parts: id-left + "@" + id-right
+  @doc false
   def join_msg_id([id_left, id_right]), do: id_left <> "@" <> id_right
 
   # Field name: any printable ASCII except ":"
@@ -287,18 +287,15 @@ defmodule Mailex.Parser do
   end
   defp skip_mbox_line(raw), do: raw
 
-  # Join continuation line parts: first WSP (fold char) + optional more WSP + line content
-  # RFC 5322 §2.2.3: The CRLF is removed, but the leading WSP is preserved
+  @doc false
   def join_continuation(parts), do: Enum.join(parts, "")
 
-  # Join field body parts (initial line + continuations)
-  # RFC 5322 §2.2.3: Do NOT trim whitespace - just concatenate parts
-  # Each continuation already starts with its leading WSP (the fold replacement)
+  @doc false
   def join_field_body(parts) do
     Enum.join(parts, "")
   end
 
-  # Helper to wrap nested comment content in parentheses for reconstruction
+  @doc false
   def wrap_nested_comment(chars) do
     "(" <> :erlang.list_to_binary(chars) <> ")"
   end
@@ -359,7 +356,7 @@ defmodule Mailex.Parser do
     strip_comments_impl(rest, acc <> <<char>>, in_quote, depth)
   end
 
-  # Post-traverse to build the message structure from parsed headers
+  @doc false
   def parse_message(rest, [{:headers, header_pairs}], context, _line, _offset) do
     headers = build_headers(header_pairs)
     content_type = parse_content_type(headers["content-type"])
@@ -1094,9 +1091,30 @@ defmodule Mailex.Parser do
     end
   end
 
-  # RFC 2047 encoded-word decoding
-  # Format: =?charset?encoding?encoded_text?=
-  # Also handles RFC 2047 §6.2: whitespace between adjacent encoded-words should be ignored
+  @doc """
+  Decodes RFC 2047 encoded-words in a string.
+
+  RFC 2047 defines a mechanism for encoding non-ASCII text in email headers.
+  Encoded-words have the format: `=?charset?encoding?encoded_text?=`
+
+  Supports both Base64 (`B`) and Quoted-Printable (`Q`) encodings.
+
+  ## Examples
+
+      iex> Mailex.Parser.decode_rfc2047("=?UTF-8?B?SGVsbG8gV29ybGQ=?=")
+      "Hello World"
+
+      iex> Mailex.Parser.decode_rfc2047("=?UTF-8?Q?Hello_World?=")
+      "Hello World"
+
+      iex> Mailex.Parser.decode_rfc2047("Plain text")
+      "Plain text"
+
+      iex> Mailex.Parser.decode_rfc2047(nil)
+      nil
+
+  """
+  @spec decode_rfc2047(binary() | nil) :: binary() | nil
   def decode_rfc2047(nil), do: nil
   def decode_rfc2047(str) do
     # First, collapse whitespace between adjacent encoded-words

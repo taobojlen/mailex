@@ -60,23 +60,29 @@ defmodule Mailex.AddressParser do
     |> concat(parsec(:comment_content))
     |> ignore(ascii_char([?)]))
 
-  cfws = times(choice([fws, comment]), min: 1) |> ignore()
-  optional_cfws = optional(cfws)
+  # Use defcombinatorp for cfws to reduce code duplication - this is used ~13 times
+  # and generates substantial code for comment parsing. Using parsec(:cfws) generates
+  # a function call instead of inlining all the code each time.
+  defcombinatorp :cfws, times(choice([fws, comment]), min: 1) |> ignore()
+  defcombinatorp :optional_cfws, optional(parsec(:cfws))
 
   # RFC 5322 atext: printable ASCII characters excluding specials
   ascii_atext = ascii_char([?a..?z, ?A..?Z, ?0..?9, ?!, ?#, ?$, ?%, ?&, ?', ?*, ?+, ?-, ?/, ?=, ??, ?^, ?_, ?`, ?{, ?|, ?}, ?~])
 
   # RFC 6532 UTF8-non-ascii: any UTF-8 character outside ASCII range (codepoints > 127)
-  # This enables internationalized email addresses (EAI)
-  utf8_non_ascii = utf8_char([not: 0..127])
+  # Use explicit range 128..0x10FFFF for better NimbleParsec code generation
+  utf8_non_ascii = utf8_char([0x80..0x10FFFF])
 
   # Combined atext that supports both ASCII and UTF-8 (RFC 5322 + RFC 6532)
   atext = choice([ascii_atext, utf8_non_ascii])
 
-  dot_atom_text =
+  # Define dot_atom_text as a combinator to share code
+  defcombinatorp :dot_atom_text,
     times(atext, min: 1)
     |> repeat(string(".") |> concat(times(atext, min: 1)))
     |> reduce({__MODULE__, :codepoints_to_string, []})
+
+  dot_atom_text = parsec(:dot_atom_text)
 
   qtext = ascii_char([0x21, 0x23..0x5B, 0x5D..0x7E])
 
@@ -89,9 +95,9 @@ defmodule Mailex.AddressParser do
     |> reduce({:erlang, :list_to_binary, []})
 
   _quoted_string =
-    optional_cfws
+    parsec(:optional_cfws)
     |> concat(quoted_string_inner)
-    |> concat(optional_cfws)
+    |> concat(parsec(:optional_cfws))
 
   # ===========================================================================
   # Address components (RFC 5322 §3.4)
@@ -117,28 +123,30 @@ defmodule Mailex.AddressParser do
       dot_atom_text |> unwrap_and_tag(:dot_domain)
     ])
 
-  addr_spec =
-    optional_cfws
+  # Note: addr_spec is defined for reference but the defparsec was removed
+  # to improve compile time. We parse via address_list and extract results.
+  _addr_spec =
+    parsec(:optional_cfws)
     |> concat(local_part)
-    |> ignore(optional_cfws)
+    |> ignore(parsec(:optional_cfws))
     |> ignore(string("@"))
-    |> ignore(optional_cfws)
+    |> ignore(parsec(:optional_cfws))
     |> concat(domain)
-    |> concat(optional_cfws)
+    |> concat(parsec(:optional_cfws))
     |> post_traverse({__MODULE__, :build_addr_spec, []})
 
   angle_addr =
-    optional_cfws
+    parsec(:optional_cfws)
     |> ignore(string("<"))
-    |> ignore(optional_cfws)
+    |> ignore(parsec(:optional_cfws))
     |> concat(local_part)
-    |> ignore(optional_cfws)
+    |> ignore(parsec(:optional_cfws))
     |> ignore(string("@"))
-    |> ignore(optional_cfws)
+    |> ignore(parsec(:optional_cfws))
     |> concat(domain)
-    |> ignore(optional_cfws)
+    |> ignore(parsec(:optional_cfws))
     |> ignore(string(">"))
-    |> concat(optional_cfws)
+    |> concat(parsec(:optional_cfws))
     |> post_traverse({__MODULE__, :build_addr_spec, []})
 
   phrase_word =
@@ -149,7 +157,7 @@ defmodule Mailex.AddressParser do
     ])
 
   phrase =
-    optional_cfws
+    parsec(:optional_cfws)
     |> concat(phrase_word)
     |> repeat(
       choice([
@@ -157,7 +165,7 @@ defmodule Mailex.AddressParser do
         phrase_word
       ])
     )
-    |> concat(optional_cfws)
+    |> concat(parsec(:optional_cfws))
     |> reduce({__MODULE__, :join_phrase, []})
 
   name_addr =
@@ -167,33 +175,33 @@ defmodule Mailex.AddressParser do
     |> post_traverse({__MODULE__, :build_name_addr, []})
 
   bare_angle_addr =
-    optional_cfws
+    parsec(:optional_cfws)
     |> ignore(string("<"))
-    |> ignore(optional_cfws)
+    |> ignore(parsec(:optional_cfws))
     |> concat(local_part)
-    |> ignore(optional_cfws)
+    |> ignore(parsec(:optional_cfws))
     |> ignore(string("@"))
-    |> ignore(optional_cfws)
+    |> ignore(parsec(:optional_cfws))
     |> concat(domain)
-    |> ignore(optional_cfws)
+    |> ignore(parsec(:optional_cfws))
     |> ignore(string(">"))
-    |> concat(optional_cfws)
+    |> concat(parsec(:optional_cfws))
     |> post_traverse({__MODULE__, :build_bare_mailbox, []})
 
   bare_addr_spec =
-    optional_cfws
+    parsec(:optional_cfws)
     |> concat(local_part)
-    |> ignore(optional_cfws)
+    |> ignore(parsec(:optional_cfws))
     |> ignore(string("@"))
-    |> ignore(optional_cfws)
+    |> ignore(parsec(:optional_cfws))
     |> concat(domain)
-    |> concat(optional_cfws)
+    |> concat(parsec(:optional_cfws))
     |> concat(optional(comment))
     |> post_traverse({__MODULE__, :build_bare_mailbox, []})
 
   mailbox = choice([name_addr, bare_angle_addr, bare_addr_spec])
 
-  mailbox_sep = optional_cfws |> ignore(string(",")) |> concat(optional_cfws)
+  mailbox_sep = parsec(:optional_cfws) |> ignore(string(",")) |> concat(parsec(:optional_cfws))
 
   mailbox_list =
     optional(mailbox)
@@ -201,19 +209,19 @@ defmodule Mailex.AddressParser do
     |> post_traverse({__MODULE__, :collect_list, []})
 
   group =
-    optional_cfws
+    parsec(:optional_cfws)
     |> concat(phrase |> unwrap_and_tag(:group_name))
     |> ignore(string(":"))
-    |> concat(optional_cfws)
+    |> concat(parsec(:optional_cfws))
     |> concat(tag(optional(mailbox_list), :members))
-    |> ignore(optional_cfws)
+    |> ignore(parsec(:optional_cfws))
     |> ignore(string(";"))
-    |> concat(optional_cfws)
+    |> concat(parsec(:optional_cfws))
     |> post_traverse({__MODULE__, :build_group, []})
 
   address = choice([group, mailbox])
 
-  address_sep = optional_cfws |> ignore(string(",")) |> concat(optional_cfws)
+  address_sep = parsec(:optional_cfws) |> ignore(string(",")) |> concat(parsec(:optional_cfws))
 
   address_list =
     repeat(address_sep)
@@ -225,48 +233,144 @@ defmodule Mailex.AddressParser do
   # Parser definitions
   # ===========================================================================
 
-  defparsec :do_parse_addr_spec, addr_spec |> eos()
-  defparsec :do_parse_mailbox, mailbox |> eos()
-  defparsec :do_parse_group, group |> eos()
-  defparsec :do_parse_address, address |> eos()
+  # Only generate one parser entry point to reduce compile time.
+  # NimbleParsec generates substantial code for each defparsec, so minimizing
+  # entry points significantly improves compilation speed.
+  #
+  # The other parse_* functions reuse this parser and validate results.
   defparsec :do_parse_address_list, address_list |> eos()
 
   # ===========================================================================
   # Public API
   # ===========================================================================
 
+  @doc """
+  Parses an addr-spec (bare email address without display name).
+
+  Returns `{:ok, map}` with `:local_part` and `:domain` keys on success.
+
+  ## Examples
+
+      iex> Mailex.AddressParser.parse_addr_spec("user@example.com")
+      {:ok, %{local_part: "user", domain: "example.com"}}
+
+      iex> Mailex.AddressParser.parse_addr_spec("\"quoted.user\"@example.com")
+      {:ok, %{local_part: "quoted.user", domain: "example.com"}}
+
+  """
+  @spec parse_addr_spec(binary()) :: {:ok, map()} | {:error, term()}
   def parse_addr_spec(input) when is_binary(input) do
-    case do_parse_addr_spec(input) do
-      {:ok, [result], "", _, _, _} -> {:ok, result}
-      {:ok, _, rest, _, _, _} -> {:error, "unexpected input: #{inspect(rest)}"}
-      {:error, reason, _, _, _, _} -> {:error, reason}
+    # Parse as address list and extract addr-spec components
+    case parse_address_list(input) do
+      {:ok, [%{type: :mailbox, address: addr}]} ->
+        case String.split(addr, "@", parts: 2) do
+          [local, domain] -> {:ok, %{local_part: local, domain: domain}}
+          _ -> {:error, "invalid addr-spec"}
+        end
+      {:ok, _} -> {:error, "expected single addr-spec"}
+      error -> error
     end
   end
 
+  @doc """
+  Parses a mailbox (email address with optional display name).
+
+  Returns `{:ok, map}` with `:type`, `:name`, and `:address` keys on success.
+
+  ## Examples
+
+      iex> Mailex.AddressParser.parse_mailbox("user@example.com")
+      {:ok, %{type: :mailbox, name: nil, address: "user@example.com"}}
+
+      iex> Mailex.AddressParser.parse_mailbox("John Doe <john@example.com>")
+      {:ok, %{type: :mailbox, name: "John Doe", address: "john@example.com"}}
+
+      iex> Mailex.AddressParser.parse_mailbox("\"John Doe\" <john@example.com>")
+      {:ok, %{type: :mailbox, name: "John Doe", address: "john@example.com"}}
+
+  """
+  @spec parse_mailbox(binary()) :: {:ok, map()} | {:error, term()}
   def parse_mailbox(input) when is_binary(input) do
-    case do_parse_mailbox(input) do
-      {:ok, [result], "", _, _, _} -> {:ok, result}
-      {:ok, _, rest, _, _, _} -> {:error, "unexpected input: #{inspect(rest)}"}
-      {:error, reason, _, _, _, _} -> {:error, reason}
+    case parse_address_list(input) do
+      {:ok, [%{type: :mailbox} = result]} -> {:ok, result}
+      {:ok, [%{type: :group}]} -> {:error, "expected mailbox, got group"}
+      {:ok, _} -> {:error, "expected single mailbox"}
+      error -> error
     end
   end
 
+  @doc """
+  Parses an RFC 5322 group (named list of mailboxes).
+
+  Returns `{:ok, map}` with `:type`, `:name`, and `:members` keys on success.
+
+  ## Examples
+
+      iex> Mailex.AddressParser.parse_group("Team: alice@example.com, bob@example.com;")
+      {:ok, %{type: :group, name: "Team", members: [
+        %{type: :mailbox, name: nil, address: "alice@example.com"},
+        %{type: :mailbox, name: nil, address: "bob@example.com"}
+      ]}}
+
+      iex> Mailex.AddressParser.parse_group("Empty:;")
+      {:ok, %{type: :group, name: "Empty", members: []}}
+
+  """
+  @spec parse_group(binary()) :: {:ok, map()} | {:error, term()}
   def parse_group(input) when is_binary(input) do
-    case do_parse_group(input) do
-      {:ok, [result], "", _, _, _} -> {:ok, result}
-      {:ok, _, rest, _, _, _} -> {:error, "unexpected input: #{inspect(rest)}"}
-      {:error, reason, _, _, _, _} -> {:error, reason}
+    case parse_address_list(input) do
+      {:ok, [%{type: :group} = result]} -> {:ok, result}
+      {:ok, [%{type: :mailbox}]} -> {:error, "expected group, got mailbox"}
+      {:ok, _} -> {:error, "expected single group"}
+      error -> error
     end
   end
 
+  @doc """
+  Parses a single address (either a mailbox or a group).
+
+  Returns `{:ok, map}` on success. The result has `:type` key that is
+  either `:mailbox` or `:group`.
+
+  ## Examples
+
+      iex> Mailex.AddressParser.parse_address("user@example.com")
+      {:ok, %{type: :mailbox, name: nil, address: "user@example.com"}}
+
+      iex> Mailex.AddressParser.parse_address("Team: user@example.com;")
+      {:ok, %{type: :group, name: "Team", members: [...]}}
+
+  """
+  @spec parse_address(binary()) :: {:ok, map()} | {:error, term()}
   def parse_address(input) when is_binary(input) do
-    case do_parse_address(input) do
-      {:ok, [result], "", _, _, _} -> {:ok, result}
-      {:ok, _, rest, _, _, _} -> {:error, "unexpected input: #{inspect(rest)}"}
-      {:error, reason, _, _, _, _} -> {:error, reason}
+    case parse_address_list(input) do
+      {:ok, [result]} -> {:ok, result}
+      {:ok, _} -> {:error, "expected single address"}
+      error -> error
     end
   end
 
+  @doc """
+  Parses a comma-separated list of addresses.
+
+  Returns `{:ok, list}` where each element is a mailbox or group map.
+
+  ## Examples
+
+      iex> Mailex.AddressParser.parse_address_list("alice@example.com, bob@example.com")
+      {:ok, [
+        %{type: :mailbox, name: nil, address: "alice@example.com"},
+        %{type: :mailbox, name: nil, address: "bob@example.com"}
+      ]}
+
+      iex> Mailex.AddressParser.parse_address_list("Alice <alice@example.com>, Team: bob@example.com;")
+      {:ok, [
+        %{type: :mailbox, name: "Alice", address: "alice@example.com"},
+        %{type: :group, name: "Team", members: [...]}
+      ]}
+
+  """
+  @spec parse_address_list(binary()) :: {:ok, [map()]} | {:error, term()}
   def parse_address_list(input) when is_binary(input) do
     case do_parse_address_list(input) do
       {:ok, [result], "", _, _, _} -> {:ok, result}

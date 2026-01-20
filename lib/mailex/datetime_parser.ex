@@ -203,6 +203,30 @@ defmodule Mailex.DateTimeParser do
   # Public API
   # ===========================================================================
 
+  @doc """
+  Parses an RFC 5322 date-time string.
+
+  Returns `{:ok, struct}` with a `Mailex.DateTimeParser` struct containing
+  the parsed date-time components.
+
+  ## Examples
+
+      iex> Mailex.DateTimeParser.parse("Mon, 15 Jan 2024 09:30:00 -0500")
+      {:ok, %Mailex.DateTimeParser{
+        day_of_week: :mon,
+        day: 15,
+        month: 1,
+        year: 2024,
+        hour: 9,
+        minute: 30,
+        second: 0,
+        zone_offset: -300
+      }}
+
+      iex> Mailex.DateTimeParser.parse("15 Jan 2024 14:30:00 GMT")
+      {:ok, %Mailex.DateTimeParser{day_of_week: nil, day: 15, month: 1, year: 2024, ...}}
+
+  """
   @spec parse(binary()) :: {:ok, t()} | {:error, term()}
   def parse(input) when is_binary(input) do
     case do_parse(input) do
@@ -212,6 +236,21 @@ defmodule Mailex.DateTimeParser do
     end
   end
 
+  @doc """
+  Converts a parsed date-time struct to an Elixir `DateTime`.
+
+  The resulting `DateTime` preserves the original timezone offset.
+
+  ## Examples
+
+      iex> {:ok, dt} = Mailex.DateTimeParser.parse("Mon, 15 Jan 2024 09:30:00 -0500")
+      iex> {:ok, datetime} = Mailex.DateTimeParser.to_datetime(dt)
+      iex> datetime.hour
+      9
+      iex> datetime.utc_offset
+      -18000
+
+  """
   @spec to_datetime(t()) :: {:ok, DateTime.t()} | {:error, term()}
   def to_datetime(%__MODULE__{} = dt) do
     offset_seconds = dt.zone_offset * 60
@@ -229,6 +268,21 @@ defmodule Mailex.DateTimeParser do
     end
   end
 
+  @doc """
+  Converts a parsed date-time struct to a UTC `DateTime`.
+
+  The timezone offset is applied, and the result is in UTC (offset 0).
+
+  ## Examples
+
+      iex> {:ok, dt} = Mailex.DateTimeParser.parse("Mon, 15 Jan 2024 09:30:00 -0500")
+      iex> {:ok, utc_datetime} = Mailex.DateTimeParser.to_utc_datetime(dt)
+      iex> utc_datetime.hour
+      14
+      iex> utc_datetime.utc_offset
+      0
+
+  """
   @spec to_utc_datetime(t()) :: {:ok, DateTime.t()} | {:error, term()}
   def to_utc_datetime(%__MODULE__{} = dt) do
     offset_minutes = dt.zone_offset
