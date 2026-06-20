@@ -1,5 +1,11 @@
 [
-  %{id: 1, address: "first.last@iana.org", category: "ISEMAIL_VALID_CATEGORY", comment: nil, diagnosis: "ISEMAIL_VALID"},
+  %{
+    id: 1,
+    address: "first.last@iana.org",
+    category: "ISEMAIL_VALID_CATEGORY",
+    comment: nil,
+    diagnosis: "ISEMAIL_VALID"
+  },
   %{
     id: 2,
     address: "1234567890123456789012345678901234567890123456789012345678901234@iana.org",
@@ -44,14 +50,16 @@
   },
   %{
     id: 8,
-    address: "x@x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x2",
+    address:
+      "x@x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x2",
     category: "ISEMAIL_DNSWARN",
     comment: "Total length reduced to 254 characters so it's still valid",
     diagnosis: "ISEMAIL_DNSWARN_NO_RECORD"
   },
   %{
     id: 9,
-    address: "1234567890123456789012345678901234567890123456789012345678901@12345678901234567890123456789012345678901234567890123456789.12345678901234567890123456789012345678901234567890123456789.123456789012345678901234567890123456789012345678901234567890123.iana.org",
+    address:
+      "1234567890123456789012345678901234567890123456789012345678901@12345678901234567890123456789012345678901234567890123456789.12345678901234567890123456789012345678901234567890123456789.123456789012345678901234567890123456789012345678901234567890123.iana.org",
     category: "ISEMAIL_DNSWARN",
     comment: "Total length reduced to 254 characters so it's still valid",
     diagnosis: "ISEMAIL_DNSWARN_NO_RECORD"
@@ -114,7 +122,8 @@
   },
   %{
     id: 18,
-    address: "first.last@x23456789012345678901234567890123456789012345678901234567890123.iana.org",
+    address:
+      "first.last@x23456789012345678901234567890123456789012345678901234567890123.iana.org",
     category: "ISEMAIL_DNSWARN",
     comment: nil,
     diagnosis: "ISEMAIL_DNSWARN_NO_RECORD"
@@ -135,12 +144,19 @@
   },
   %{
     id: 21,
-    address: "123456789012345678901234567890123456789012345678901234567890@12345678901234567890123456789012345678901234567890123456789.12345678901234567890123456789012345678901234567890123456789.12345678901234567890123456789012345678901234567890123456789.12345.iana.org",
+    address:
+      "123456789012345678901234567890123456789012345678901234567890@12345678901234567890123456789012345678901234567890123456789.12345678901234567890123456789012345678901234567890123456789.12345678901234567890123456789012345678901234567890123456789.12345.iana.org",
     category: "ISEMAIL_RFC5322",
     comment: "Entire address is longer than 254 characters",
     diagnosis: "ISEMAIL_RFC5322_TOOLONG"
   },
-  %{id: 22, address: "first.last", category: "ISEMAIL_ERR", comment: "No @", diagnosis: "ISEMAIL_ERR_NODOMAIN"},
+  %{
+    id: 22,
+    address: "first.last",
+    category: "ISEMAIL_ERR",
+    comment: "No @",
+    diagnosis: "ISEMAIL_ERR_NODOMAIN"
+  },
   %{
     id: 23,
     address: "12345678901234567890123456789012345678901234567890123456789012345@iana.org",
@@ -201,7 +217,8 @@
     id: 31,
     address: "\"\"@iana.org",
     category: "ISEMAIL_RFC5321",
-    comment: "Local part is effectively empty, but this form is specifically allowed by RFC 5322 & RFC 5321",
+    comment:
+      "Local part is effectively empty, but this form is specifically allowed by RFC 5322 & RFC 5321",
     diagnosis: "ISEMAIL_RFC5321_QUOTEDSTRING"
   },
   %{
@@ -211,10 +228,17 @@
     comment: "Local part contains unescaped excluded characters",
     diagnosis: "ISEMAIL_ERR_EXPECTING_ATEXT"
   },
-  %{id: 33, address: "first.last@", category: "ISEMAIL_ERR", comment: "No domain", diagnosis: "ISEMAIL_ERR_NODOMAIN"},
+  %{
+    id: 33,
+    address: "first.last@",
+    category: "ISEMAIL_ERR",
+    comment: "No domain",
+    diagnosis: "ISEMAIL_ERR_NODOMAIN"
+  },
   %{
     id: 34,
-    address: "x@x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456",
+    address:
+      "x@x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456789.x23456",
     category: "ISEMAIL_RFC5322",
     comment: "Domain exceeds 255 chars",
     diagnosis: "ISEMAIL_RFC5322_DOMAIN_TOOLONG"
@@ -340,7 +364,8 @@
   },
   %{
     id: 52,
-    address: "first.last@x234567890123456789012345678901234567890123456789012345678901234.iana.org",
+    address:
+      "first.last@x234567890123456789012345678901234567890123456789012345678901234.iana.org",
     category: "ISEMAIL_RFC5322",
     comment: "Label can't be longer than 63 octets",
     diagnosis: "ISEMAIL_RFC5322_LABEL_TOOLONG"
@@ -394,7 +419,13 @@
     comment: nil,
     diagnosis: "ISEMAIL_VALID"
   },
-  %{id: 60, address: "$A12345@iana.org", category: "ISEMAIL_VALID_CATEGORY", comment: nil, diagnosis: "ISEMAIL_VALID"},
+  %{
+    id: 60,
+    address: "$A12345@iana.org",
+    category: "ISEMAIL_VALID_CATEGORY",
+    comment: nil,
+    diagnosis: "ISEMAIL_VALID"
+  },
   %{
     id: 61,
     address: "!def!xyz%abc@iana.org",
@@ -402,8 +433,20 @@
     comment: nil,
     diagnosis: "ISEMAIL_VALID"
   },
-  %{id: 62, address: "_somename@iana.org", category: "ISEMAIL_VALID_CATEGORY", comment: nil, diagnosis: "ISEMAIL_VALID"},
-  %{id: 63, address: "dclo@us.ibm.com", category: "ISEMAIL_VALID_CATEGORY", comment: nil, diagnosis: "ISEMAIL_VALID"},
+  %{
+    id: 62,
+    address: "_somename@iana.org",
+    category: "ISEMAIL_VALID_CATEGORY",
+    comment: nil,
+    diagnosis: "ISEMAIL_VALID"
+  },
+  %{
+    id: 63,
+    address: "dclo@us.ibm.com",
+    category: "ISEMAIL_VALID_CATEGORY",
+    comment: nil,
+    diagnosis: "ISEMAIL_VALID"
+  },
   %{
     id: 64,
     address: "abc\\@def@iana.org",
@@ -537,8 +580,20 @@
     comment: "Doug Lovell says this should fail",
     diagnosis: "ISEMAIL_ERR_DOT_END"
   },
-  %{id: 83, address: "test@iana.org", category: "ISEMAIL_VALID_CATEGORY", comment: nil, diagnosis: "ISEMAIL_VALID"},
-  %{id: 84, address: "TEST@iana.org", category: "ISEMAIL_VALID_CATEGORY", comment: nil, diagnosis: "ISEMAIL_VALID"},
+  %{
+    id: 83,
+    address: "test@iana.org",
+    category: "ISEMAIL_VALID_CATEGORY",
+    comment: nil,
+    diagnosis: "ISEMAIL_VALID"
+  },
+  %{
+    id: 84,
+    address: "TEST@iana.org",
+    category: "ISEMAIL_VALID_CATEGORY",
+    comment: nil,
+    diagnosis: "ISEMAIL_VALID"
+  },
   %{
     id: 85,
     address: "1234567890@iana.org",
@@ -546,11 +601,41 @@
     comment: nil,
     diagnosis: "ISEMAIL_VALID"
   },
-  %{id: 86, address: "test+test@iana.org", category: "ISEMAIL_VALID_CATEGORY", comment: nil, diagnosis: "ISEMAIL_VALID"},
-  %{id: 87, address: "test-test@iana.org", category: "ISEMAIL_VALID_CATEGORY", comment: nil, diagnosis: "ISEMAIL_VALID"},
-  %{id: 88, address: "t*est@iana.org", category: "ISEMAIL_VALID_CATEGORY", comment: nil, diagnosis: "ISEMAIL_VALID"},
-  %{id: 89, address: "+1~1+@iana.org", category: "ISEMAIL_VALID_CATEGORY", comment: nil, diagnosis: "ISEMAIL_VALID"},
-  %{id: 90, address: "{_test_}@iana.org", category: "ISEMAIL_VALID_CATEGORY", comment: nil, diagnosis: "ISEMAIL_VALID"},
+  %{
+    id: 86,
+    address: "test+test@iana.org",
+    category: "ISEMAIL_VALID_CATEGORY",
+    comment: nil,
+    diagnosis: "ISEMAIL_VALID"
+  },
+  %{
+    id: 87,
+    address: "test-test@iana.org",
+    category: "ISEMAIL_VALID_CATEGORY",
+    comment: nil,
+    diagnosis: "ISEMAIL_VALID"
+  },
+  %{
+    id: 88,
+    address: "t*est@iana.org",
+    category: "ISEMAIL_VALID_CATEGORY",
+    comment: nil,
+    diagnosis: "ISEMAIL_VALID"
+  },
+  %{
+    id: 89,
+    address: "+1~1+@iana.org",
+    category: "ISEMAIL_VALID_CATEGORY",
+    comment: nil,
+    diagnosis: "ISEMAIL_VALID"
+  },
+  %{
+    id: 90,
+    address: "{_test_}@iana.org",
+    category: "ISEMAIL_VALID_CATEGORY",
+    comment: nil,
+    diagnosis: "ISEMAIL_VALID"
+  },
   %{
     id: 91,
     address: "\"[[ test ]]\"@iana.org",
@@ -558,7 +643,13 @@
     comment: nil,
     diagnosis: "ISEMAIL_RFC5321_QUOTEDSTRING"
   },
-  %{id: 92, address: "test.test@iana.org", category: "ISEMAIL_VALID_CATEGORY", comment: nil, diagnosis: "ISEMAIL_VALID"},
+  %{
+    id: 92,
+    address: "test.test@iana.org",
+    category: "ISEMAIL_VALID_CATEGORY",
+    comment: nil,
+    diagnosis: "ISEMAIL_VALID"
+  },
   %{
     id: 93,
     address: "\"test.test\"@iana.org",
@@ -591,7 +682,8 @@
     id: 97,
     address: "test@123.123.123.123",
     category: "ISEMAIL_RFC5321",
-    comment: "Top Level Domain unlikely to have first character numeric (although ICANN make up their own rules).",
+    comment:
+      "Top Level Domain unlikely to have first character numeric (although ICANN make up their own rules).",
     diagnosis: "ISEMAIL_RFC5321_TLDNUMERIC"
   },
   %{
@@ -615,8 +707,20 @@
     comment: nil,
     diagnosis: "ISEMAIL_DNSWARN_NO_RECORD"
   },
-  %{id: 101, address: "test.iana.org", category: "ISEMAIL_ERR", comment: nil, diagnosis: "ISEMAIL_ERR_NODOMAIN"},
-  %{id: 102, address: "test.@iana.org", category: "ISEMAIL_ERR", comment: nil, diagnosis: "ISEMAIL_ERR_DOT_END"},
+  %{
+    id: 101,
+    address: "test.iana.org",
+    category: "ISEMAIL_ERR",
+    comment: nil,
+    diagnosis: "ISEMAIL_ERR_NODOMAIN"
+  },
+  %{
+    id: 102,
+    address: "test.@iana.org",
+    category: "ISEMAIL_ERR",
+    comment: nil,
+    diagnosis: "ISEMAIL_ERR_DOT_END"
+  },
   %{
     id: 103,
     address: "test..test@iana.org",
@@ -624,7 +728,13 @@
     comment: nil,
     diagnosis: "ISEMAIL_ERR_CONSECUTIVEDOTS"
   },
-  %{id: 104, address: ".test@iana.org", category: "ISEMAIL_ERR", comment: nil, diagnosis: "ISEMAIL_ERR_DOT_START"},
+  %{
+    id: 104,
+    address: ".test@iana.org",
+    category: "ISEMAIL_ERR",
+    comment: nil,
+    diagnosis: "ISEMAIL_ERR_DOT_START"
+  },
   %{
     id: 105,
     address: "test@test@iana.org",
@@ -632,7 +742,13 @@
     comment: nil,
     diagnosis: "ISEMAIL_ERR_EXPECTING_ATEXT"
   },
-  %{id: 106, address: "test@@iana.org", category: "ISEMAIL_ERR", comment: nil, diagnosis: "ISEMAIL_ERR_EXPECTING_ATEXT"},
+  %{
+    id: 106,
+    address: "test@@iana.org",
+    category: "ISEMAIL_ERR",
+    comment: nil,
+    diagnosis: "ISEMAIL_ERR_EXPECTING_ATEXT"
+  },
   %{
     id: 107,
     address: "-- test --@iana.org",
@@ -691,7 +807,8 @@
   },
   %{
     id: 115,
-    address: "test@123456789012345678901234567890123456789012345678901234567890123.123456789012345678901234567890123456789012345678901234567890123.123456789012345678901234567890123456789012345678901234567890123.123456789012345678901234567890123456789012345678901234567890.com",
+    address:
+      "test@123456789012345678901234567890123456789012345678901234567890123.123456789012345678901234567890123456789012345678901234567890123.123456789012345678901234567890123456789012345678901234567890123.123456789012345678901234567890123456789012345678901234567890.com",
     category: "ISEMAIL_RFC5322",
     comment: "255 characters is maximum length for domain. This is 256.",
     diagnosis: "ISEMAIL_RFC5322_DOMAIN_TOOLONG"
@@ -787,7 +904,13 @@
     comment: nil,
     diagnosis: "ISEMAIL_VALID"
   },
-  %{id: 129, address: "~@iana.org", category: "ISEMAIL_VALID_CATEGORY", comment: nil, diagnosis: "ISEMAIL_VALID"},
+  %{
+    id: 129,
+    address: "~@iana.org",
+    category: "ISEMAIL_VALID_CATEGORY",
+    comment: nil,
+    diagnosis: "ISEMAIL_VALID"
+  },
   %{
     id: 130,
     address: ".wooly@iana.org",
@@ -823,7 +946,13 @@
     comment: nil,
     diagnosis: "ISEMAIL_RFC5321_QUOTEDSTRING"
   },
-  %{id: 135, address: "Ima.Fool@iana.org", category: "ISEMAIL_VALID_CATEGORY", comment: nil, diagnosis: "ISEMAIL_VALID"},
+  %{
+    id: 135,
+    address: "Ima.Fool@iana.org",
+    category: "ISEMAIL_VALID_CATEGORY",
+    comment: nil,
+    diagnosis: "ISEMAIL_VALID"
+  },
   %{
     id: 136,
     address: "\"Ima.Fool\"@iana.org",
@@ -1003,7 +1132,8 @@
     id: 161,
     address: "{^c\\@**Dog^}@cartoon.com",
     category: "ISEMAIL_ERR",
-    comment: "This is a throwaway example from Doug Lovell's article. Actually it's not a valid address.",
+    comment:
+      "This is a throwaway example from Doug Lovell's article. Actually it's not a valid address.",
     diagnosis: "ISEMAIL_ERR_EXPECTING_ATEXT"
   },
   %{
@@ -1085,7 +1215,8 @@
   },
   %{
     id: 173,
-    address: "first(12345678901234567890123456789012345678901234567890)last@(1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890)iana.org",
+    address:
+      "first(12345678901234567890123456789012345678901234567890)last@(1234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890123456789012345678901234567890)iana.org",
     category: "ISEMAIL_ERR",
     comment: "Too long with comments, not too long without",
     diagnosis: "ISEMAIL_ERR_ATEXT_AFTER_CFWS"
@@ -1155,7 +1286,8 @@
   },
   %{
     id: 183,
-    address: "first(abc(\"def\".ghi).mno)middle(abc(\"def\".ghi).mno).last@(abc(\"def\".ghi).mno)example(abc(\"def\".ghi).mno).(abc(\"def\".ghi).mno)com(abc(\"def\".ghi).mno)",
+    address:
+      "first(abc(\"def\".ghi).mno)middle(abc(\"def\".ghi).mno).last@(abc(\"def\".ghi).mno)example(abc(\"def\".ghi).mno).(abc(\"def\".ghi).mno)com(abc(\"def\".ghi).mno)",
     category: "ISEMAIL_ERR",
     comment: "Can't have comments or white space except at an element boundary",
     diagnosis: "ISEMAIL_ERR_ATEXT_AFTER_CFWS"
@@ -1169,7 +1301,8 @@
   },
   %{
     id: 185,
-    address: "first.last@iana(1234567890123456789012345678901234567890123456789012345678901234567890).org",
+    address:
+      "first.last@iana(1234567890123456789012345678901234567890123456789012345678901234567890).org",
     category: "ISEMAIL_CFWS",
     comment: "Label is longer than 63 octets, but not with comment removed",
     diagnosis: "ISEMAIL_CFWS_COMMENT"
@@ -1195,14 +1328,62 @@
     comment: nil,
     diagnosis: "ISEMAIL_VALID"
   },
-  %{id: 189, address: ".@", category: "ISEMAIL_ERR", comment: nil, diagnosis: "ISEMAIL_ERR_DOT_START"},
-  %{id: 190, address: "a@b", category: "ISEMAIL_RFC5321", comment: nil, diagnosis: "ISEMAIL_RFC5321_TLD"},
-  %{id: 191, address: "@bar.com", category: "ISEMAIL_ERR", comment: nil, diagnosis: "ISEMAIL_ERR_NOLOCALPART"},
-  %{id: 192, address: "@@bar.com", category: "ISEMAIL_ERR", comment: nil, diagnosis: "ISEMAIL_ERR_NOLOCALPART"},
-  %{id: 193, address: "a@bar.com", category: "ISEMAIL_VALID_CATEGORY", comment: nil, diagnosis: "ISEMAIL_VALID"},
-  %{id: 194, address: "aaa.com", category: "ISEMAIL_ERR", comment: nil, diagnosis: "ISEMAIL_ERR_NODOMAIN"},
-  %{id: 195, address: "aaa@.com", category: "ISEMAIL_ERR", comment: nil, diagnosis: "ISEMAIL_ERR_DOT_START"},
-  %{id: 196, address: "aaa@.123", category: "ISEMAIL_ERR", comment: nil, diagnosis: "ISEMAIL_ERR_DOT_START"},
+  %{
+    id: 189,
+    address: ".@",
+    category: "ISEMAIL_ERR",
+    comment: nil,
+    diagnosis: "ISEMAIL_ERR_DOT_START"
+  },
+  %{
+    id: 190,
+    address: "a@b",
+    category: "ISEMAIL_RFC5321",
+    comment: nil,
+    diagnosis: "ISEMAIL_RFC5321_TLD"
+  },
+  %{
+    id: 191,
+    address: "@bar.com",
+    category: "ISEMAIL_ERR",
+    comment: nil,
+    diagnosis: "ISEMAIL_ERR_NOLOCALPART"
+  },
+  %{
+    id: 192,
+    address: "@@bar.com",
+    category: "ISEMAIL_ERR",
+    comment: nil,
+    diagnosis: "ISEMAIL_ERR_NOLOCALPART"
+  },
+  %{
+    id: 193,
+    address: "a@bar.com",
+    category: "ISEMAIL_VALID_CATEGORY",
+    comment: nil,
+    diagnosis: "ISEMAIL_VALID"
+  },
+  %{
+    id: 194,
+    address: "aaa.com",
+    category: "ISEMAIL_ERR",
+    comment: nil,
+    diagnosis: "ISEMAIL_ERR_NODOMAIN"
+  },
+  %{
+    id: 195,
+    address: "aaa@.com",
+    category: "ISEMAIL_ERR",
+    comment: nil,
+    diagnosis: "ISEMAIL_ERR_DOT_START"
+  },
+  %{
+    id: 196,
+    address: "aaa@.123",
+    category: "ISEMAIL_ERR",
+    comment: nil,
+    diagnosis: "ISEMAIL_ERR_DOT_START"
+  },
   %{
     id: 197,
     address: "aaa@[123.123.123.123]",
@@ -1224,9 +1405,27 @@
     comment: "not a valid IP",
     diagnosis: "ISEMAIL_RFC5322_DOMAINLITERAL"
   },
-  %{id: 200, address: "a@bar.com.", category: "ISEMAIL_ERR", comment: nil, diagnosis: "ISEMAIL_ERR_DOT_END"},
-  %{id: 201, address: "a@bar", category: "ISEMAIL_RFC5321", comment: nil, diagnosis: "ISEMAIL_RFC5321_TLD"},
-  %{id: 202, address: "a-b@bar.com", category: "ISEMAIL_VALID_CATEGORY", comment: nil, diagnosis: "ISEMAIL_VALID"},
+  %{
+    id: 200,
+    address: "a@bar.com.",
+    category: "ISEMAIL_ERR",
+    comment: nil,
+    diagnosis: "ISEMAIL_ERR_DOT_END"
+  },
+  %{
+    id: 201,
+    address: "a@bar",
+    category: "ISEMAIL_RFC5321",
+    comment: nil,
+    diagnosis: "ISEMAIL_RFC5321_TLD"
+  },
+  %{
+    id: 202,
+    address: "a-b@bar.com",
+    category: "ISEMAIL_VALID_CATEGORY",
+    comment: nil,
+    diagnosis: "ISEMAIL_VALID"
+  },
   %{
     id: 203,
     address: "+@b.c",
@@ -1234,11 +1433,41 @@
     comment: "TLDs can be any length",
     diagnosis: "ISEMAIL_DNSWARN_NO_RECORD"
   },
-  %{id: 204, address: "+@b.com", category: "ISEMAIL_DNSWARN", comment: nil, diagnosis: "ISEMAIL_DNSWARN_NO_RECORD"},
-  %{id: 205, address: "a@-b.com", category: "ISEMAIL_ERR", comment: nil, diagnosis: "ISEMAIL_ERR_DOMAINHYPHENSTART"},
-  %{id: 206, address: "a@b-.com", category: "ISEMAIL_ERR", comment: nil, diagnosis: "ISEMAIL_ERR_DOMAINHYPHENEND"},
-  %{id: 207, address: "-@..com", category: "ISEMAIL_ERR", comment: nil, diagnosis: "ISEMAIL_ERR_DOT_START"},
-  %{id: 208, address: "-@a..com", category: "ISEMAIL_ERR", comment: nil, diagnosis: "ISEMAIL_ERR_CONSECUTIVEDOTS"},
+  %{
+    id: 204,
+    address: "+@b.com",
+    category: "ISEMAIL_DNSWARN",
+    comment: nil,
+    diagnosis: "ISEMAIL_DNSWARN_NO_RECORD"
+  },
+  %{
+    id: 205,
+    address: "a@-b.com",
+    category: "ISEMAIL_ERR",
+    comment: nil,
+    diagnosis: "ISEMAIL_ERR_DOMAINHYPHENSTART"
+  },
+  %{
+    id: 206,
+    address: "a@b-.com",
+    category: "ISEMAIL_ERR",
+    comment: nil,
+    diagnosis: "ISEMAIL_ERR_DOMAINHYPHENEND"
+  },
+  %{
+    id: 207,
+    address: "-@..com",
+    category: "ISEMAIL_ERR",
+    comment: nil,
+    diagnosis: "ISEMAIL_ERR_DOT_START"
+  },
+  %{
+    id: 208,
+    address: "-@a..com",
+    category: "ISEMAIL_ERR",
+    comment: nil,
+    diagnosis: "ISEMAIL_ERR_CONSECUTIVEDOTS"
+  },
   %{
     id: 209,
     address: "a@b.co-foo.uk",
@@ -1332,7 +1561,8 @@
   },
   %{
     id: 222,
-    address: "␍␊ (␍␊ x ␍␊ ) ␍␊ first␍␊ ( ␍␊ x␍␊ ) ␍␊ .␍␊ ( ␍␊ x) ␍␊ last ␍␊ (  x ␍␊ ) ␍␊ @iana.org",
+    address:
+      "␍␊ (␍␊ x ␍␊ ) ␍␊ first␍␊ ( ␍␊ x␍␊ ) ␍␊ .␍␊ ( ␍␊ x) ␍␊ last ␍␊ (  x ␍␊ ) ␍␊ @iana.org",
     category: "ISEMAIL_DEPREC",
     comment: nil,
     diagnosis: "ISEMAIL_DEPREC_CFWS_NEAR_AT"
@@ -1341,7 +1571,8 @@
     id: 223,
     address: "first.last @iana.org",
     category: "ISEMAIL_DEPREC",
-    comment: "FWS is allowed after local part (this is similar to #152 but is the test proposed by John Kloor)",
+    comment:
+      "FWS is allowed after local part (this is similar to #152 but is the test proposed by John Kloor)",
     diagnosis: "ISEMAIL_DEPREC_CFWS_NEAR_AT"
   },
   %{

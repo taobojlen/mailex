@@ -129,8 +129,20 @@ defmodule Mailex.Mime4jConformanceTest do
       # Skip headers that can have multiple values (Received, etc.)
       # Skip headers that may contain RFC 2047 encoded-words (our parser decodes them,
       # but the XML expected values contain raw encoded forms)
-      skip_headers = ["content-type", "received", "comments", "keywords", "x-filter",
-                      "from", "to", "cc", "bcc", "subject", "content-disposition", "sender"]
+      skip_headers = [
+        "content-type",
+        "received",
+        "comments",
+        "keywords",
+        "x-filter",
+        "from",
+        "to",
+        "cc",
+        "bcc",
+        "subject",
+        "content-disposition",
+        "sender"
+      ]
 
       if header_name not in skip_headers and actual_value do
         # Handle list values - compare against first if it's a list
@@ -339,9 +351,11 @@ defmodule Mailex.Mime4jConformanceTest do
 
   defp normalize_header_value(value) do
     value
-    |> String.replace(~r/\r?\n\s+/, " ")  # Unfold
+    # Unfold
+    |> String.replace(~r/\r?\n\s+/, " ")
     |> String.trim()
-    |> String.replace(~r/\s+/, " ")  # Normalize whitespace
+    # Normalize whitespace
+    |> String.replace(~r/\s+/, " ")
   end
 
   # Unescape XML entities

@@ -127,8 +127,9 @@ defmodule Mailex.ParserTest do
       """
 
       assert {:ok, message} = Mailex.Parser.parse(raw)
+
       assert message.headers["subject"] ==
-        "This is a very long subject line that continues on the next line and even a third line"
+               "This is a very long subject line that continues on the next line and even a third line"
     end
 
     test "parses multiple headers with same name" do
@@ -244,7 +245,8 @@ defmodule Mailex.ParserTest do
 
     test "preserves whitespace inside quoted-strings during unfolding" do
       # Folded header with quoted-string containing spaces that must not be trimmed
-      raw = "From: sender@example.com\nContent-Type: text/plain; name=\"  file  \n with spaces  \"\n\nBody.\n"
+      raw =
+        "From: sender@example.com\nContent-Type: text/plain; name=\"  file  \n with spaces  \"\n\nBody.\n"
 
       assert {:ok, message} = Mailex.Parser.parse(raw)
       # The quoted-string value should preserve internal spaces
@@ -265,7 +267,8 @@ defmodule Mailex.ParserTest do
     test "continues parsing headers past malformed line until blank line" do
       # A line without ':' in the middle of headers should not terminate header parsing
       # The parser should detect end-of-headers strictly by blank line per RFC 5322 §2.2
-      raw = "From: sender@example.com\nMalformed line without colon\nTo: recipient@example.com\n\nBody.\n"
+      raw =
+        "From: sender@example.com\nMalformed line without colon\nTo: recipient@example.com\n\nBody.\n"
 
       assert {:ok, message} = Mailex.Parser.parse(raw)
       # Both From and To should be parsed; malformed line may be ignored or attached to From
@@ -349,7 +352,8 @@ defmodule Mailex.ParserTest do
     end
 
     test "preserves literal tab inside quoted-string (unescaped)" do
-      raw = "From: sender@example.com\r\nContent-Type: text/plain; name=\"file\tname.txt\"\r\n\r\nBody."
+      raw =
+        "From: sender@example.com\r\nContent-Type: text/plain; name=\"file\tname.txt\"\r\n\r\nBody."
 
       assert {:ok, message} = Mailex.Parser.parse(raw)
       assert message.content_type.params["name"] == "file\tname.txt"
@@ -404,9 +408,10 @@ defmodule Mailex.ParserTest do
       assert {:ok, message} = Mailex.Parser.parse(raw)
 
       # Find the nested multipart part
-      nested = Enum.find(message.parts, fn part ->
-        part.content_type.type == "multipart"
-      end)
+      nested =
+        Enum.find(message.parts, fn part ->
+          part.content_type.type == "multipart"
+        end)
 
       assert nested != nil
       assert is_list(nested.parts)
@@ -417,10 +422,11 @@ defmodule Mailex.ParserTest do
       assert {:ok, message} = Mailex.Parser.parse(raw)
 
       # Should find an embedded message/rfc822 part
-      embedded = Enum.find(message.parts, fn part ->
-        part.content_type.type == "message" and
-        part.content_type.subtype == "rfc822"
-      end)
+      embedded =
+        Enum.find(message.parts, fn part ->
+          part.content_type.type == "message" and
+            part.content_type.subtype == "rfc822"
+        end)
 
       assert embedded != nil
     end
@@ -430,7 +436,9 @@ defmodule Mailex.ParserTest do
     @tag :boundary
     test "handles transport padding (spaces/tabs) after boundary" do
       # Boundary line has trailing spaces before CRLF
-      msg = "Content-Type: multipart/mixed; boundary=abc\r\n\r\n--abc   \t\r\nContent-Type: text/plain\r\n\r\npart1\r\n--abc--\r\n"
+      msg =
+        "Content-Type: multipart/mixed; boundary=abc\r\n\r\n--abc   \t\r\nContent-Type: text/plain\r\n\r\npart1\r\n--abc--\r\n"
+
       {:ok, parsed} = Mailex.Parser.parse(msg)
       assert length(parsed.parts) == 1
       assert parsed.parts |> hd() |> Map.get(:body) == "part1"
@@ -439,7 +447,9 @@ defmodule Mailex.ParserTest do
     @tag :boundary
     test "boundary appearing mid-line in body does not split" do
       # "--abc" appears in body but not at line start
-      msg = "Content-Type: multipart/mixed; boundary=abc\r\n\r\n--abc\r\nContent-Type: text/plain\r\n\r\ntext with --abc in middle\r\n--abc--\r\n"
+      msg =
+        "Content-Type: multipart/mixed; boundary=abc\r\n\r\n--abc\r\nContent-Type: text/plain\r\n\r\ntext with --abc in middle\r\n--abc--\r\n"
+
       {:ok, parsed} = Mailex.Parser.parse(msg)
       assert length(parsed.parts) == 1
       assert parsed.parts |> hd() |> Map.get(:body) =~ "--abc in middle"
@@ -447,7 +457,9 @@ defmodule Mailex.ParserTest do
 
     @tag :boundary
     test "near-miss boundary (extra char) does not split" do
-      msg = "Content-Type: multipart/mixed; boundary=abc\r\n\r\n--abc\r\nContent-Type: text/plain\r\n\r\npart1\r\n--abcX\r\nstill part1\r\n--abc--\r\n"
+      msg =
+        "Content-Type: multipart/mixed; boundary=abc\r\n\r\n--abc\r\nContent-Type: text/plain\r\n\r\npart1\r\n--abcX\r\nstill part1\r\n--abc--\r\n"
+
       {:ok, parsed} = Mailex.Parser.parse(msg)
       assert length(parsed.parts) == 1
       body = parsed.parts |> hd() |> Map.get(:body)
@@ -458,7 +470,9 @@ defmodule Mailex.ParserTest do
     @tag :boundary
     test "boundary with non-whitespace suffix does not split" do
       # "--abc extra" should not be treated as boundary
-      msg = "Content-Type: multipart/mixed; boundary=abc\r\n\r\n--abc\r\nContent-Type: text/plain\r\n\r\npart1\r\n--abc extra\r\nstill part1\r\n--abc--\r\n"
+      msg =
+        "Content-Type: multipart/mixed; boundary=abc\r\n\r\n--abc\r\nContent-Type: text/plain\r\n\r\npart1\r\n--abc extra\r\nstill part1\r\n--abc--\r\n"
+
       {:ok, parsed} = Mailex.Parser.parse(msg)
       assert length(parsed.parts) == 1
       body = parsed.parts |> hd() |> Map.get(:body)
@@ -467,28 +481,36 @@ defmodule Mailex.ParserTest do
 
     @tag :boundary
     test "close-delimiter with trailing whitespace" do
-      msg = "Content-Type: multipart/mixed; boundary=abc\r\n\r\n--abc\r\nContent-Type: text/plain\r\n\r\npart1\r\n--abc--  \t\r\nepilogue\r\n"
+      msg =
+        "Content-Type: multipart/mixed; boundary=abc\r\n\r\n--abc\r\nContent-Type: text/plain\r\n\r\npart1\r\n--abc--  \t\r\nepilogue\r\n"
+
       {:ok, parsed} = Mailex.Parser.parse(msg)
       assert length(parsed.parts) == 1
     end
 
     @tag :boundary
     test "handles LF-only line endings" do
-      msg = "Content-Type: multipart/mixed; boundary=abc\n\n--abc\nContent-Type: text/plain\n\npart1\n--abc--\n"
+      msg =
+        "Content-Type: multipart/mixed; boundary=abc\n\n--abc\nContent-Type: text/plain\n\npart1\n--abc--\n"
+
       {:ok, parsed} = Mailex.Parser.parse(msg)
       assert length(parsed.parts) == 1
     end
 
     @tag :boundary
     test "multiple parts with strict boundary matching" do
-      msg = "Content-Type: multipart/mixed; boundary=BOUND\r\n\r\npreamble\r\n--BOUND\r\nContent-Type: text/plain\r\n\r\npart1\r\n--BOUND  \r\nContent-Type: text/html\r\n\r\npart2\r\n--BOUND--\r\nepilogue\r\n"
+      msg =
+        "Content-Type: multipart/mixed; boundary=BOUND\r\n\r\npreamble\r\n--BOUND\r\nContent-Type: text/plain\r\n\r\npart1\r\n--BOUND  \r\nContent-Type: text/html\r\n\r\npart2\r\n--BOUND--\r\nepilogue\r\n"
+
       {:ok, parsed} = Mailex.Parser.parse(msg)
       assert length(parsed.parts) == 2
     end
 
     @tag :boundary
     test "empty parts" do
-      msg = "Content-Type: multipart/mixed; boundary=abc\r\n\r\n--abc\r\nContent-Type: text/plain\r\n\r\n\r\n--abc--\r\n"
+      msg =
+        "Content-Type: multipart/mixed; boundary=abc\r\n\r\n--abc\r\nContent-Type: text/plain\r\n\r\n\r\n--abc--\r\n"
+
       {:ok, parsed} = Mailex.Parser.parse(msg)
       assert length(parsed.parts) == 1
       assert parsed.parts |> hd() |> Map.get(:body) == ""
@@ -497,7 +519,9 @@ defmodule Mailex.ParserTest do
     @tag :boundary
     test "boundary containing regex special characters" do
       # Boundary with . + * which are regex special chars
-      msg = "Content-Type: multipart/mixed; boundary=\"a.b+c*d\"\r\n\r\n--a.b+c*d\r\nContent-Type: text/plain\r\n\r\npart1\r\n--a.b+c*d--\r\n"
+      msg =
+        "Content-Type: multipart/mixed; boundary=\"a.b+c*d\"\r\n\r\n--a.b+c*d\r\nContent-Type: text/plain\r\n\r\npart1\r\n--a.b+c*d--\r\n"
+
       {:ok, parsed} = Mailex.Parser.parse(msg)
       assert length(parsed.parts) == 1
     end
@@ -769,6 +793,7 @@ defmodule Mailex.ParserTest do
 
       assert String.trim(part_1.body) == String.trim(expected_body_1),
              "Part 1 body mismatch"
+
       assert String.trim(part_2.body) == String.trim(expected_body_2),
              "Part 2 body mismatch"
     end
@@ -842,7 +867,10 @@ defmodule Mailex.ParserTest do
 
       # The embedded message
       embedded = Enum.at(part_5.parts, 0)
-      assert embedded.headers["subject"] == "Part 5 of the outer message is itself an RFC822 message!"
+
+      assert embedded.headers["subject"] ==
+               "Part 5 of the outer message is itself an RFC822 message!"
+
       assert embedded.content_type.type == "text"
       assert embedded.body =~ "Part 5 of the outer message"
     end
@@ -859,9 +887,10 @@ defmodule Mailex.ParserTest do
       assert is_list(message.parts)
 
       # Find the nested multipart part and verify it has sub-parts
-      nested_parts = Enum.filter(message.parts, fn part ->
-        part.content_type.type == "multipart"
-      end)
+      nested_parts =
+        Enum.filter(message.parts, fn part ->
+          part.content_type.type == "multipart"
+        end)
 
       assert length(nested_parts) > 0, "Should have at least one nested multipart"
 
@@ -889,9 +918,11 @@ defmodule Mailex.ParserTest do
 
   defp count_nesting_depth(message, current_depth \\ 1) do
     if is_list(message.parts) and length(message.parts) > 0 do
-      child_depths = Enum.map(message.parts, fn part ->
-        count_nesting_depth(part, current_depth + 1)
-      end)
+      child_depths =
+        Enum.map(message.parts, fn part ->
+          count_nesting_depth(part, current_depth + 1)
+        end)
+
       Enum.max(child_depths)
     else
       current_depth
@@ -906,28 +937,30 @@ defmodule Mailex.ParserTest do
       # Validate content type
       if type = msg_expected["Type"] do
         [expected_type, expected_subtype] = String.split(type, "/")
+
         assert message.content_type.type == expected_type,
-          "#{test_name}: expected type #{expected_type}, got #{message.content_type.type}"
+               "#{test_name}: expected type #{expected_type}, got #{message.content_type.type}"
+
         assert message.content_type.subtype == expected_subtype,
-          "#{test_name}: expected subtype #{expected_subtype}, got #{message.content_type.subtype}"
+               "#{test_name}: expected subtype #{expected_subtype}, got #{message.content_type.subtype}"
       end
 
       # Validate from
       if from = msg_expected["From"] do
         assert message.headers["from"] == from,
-          "#{test_name}: expected from #{from}, got #{message.headers["from"]}"
+               "#{test_name}: expected from #{from}, got #{message.headers["from"]}"
       end
 
       # Validate subject
       if subject = msg_expected["Subject"] do
         assert message.headers["subject"] == subject,
-          "#{test_name}: expected subject #{subject}, got #{message.headers["subject"]}"
+               "#{test_name}: expected subject #{subject}, got #{message.headers["subject"]}"
       end
 
       # Validate encoding
       if encoding = msg_expected["Encoding"] do
         assert message.encoding == encoding,
-          "#{test_name}: expected encoding #{encoding}, got #{message.encoding}"
+               "#{test_name}: expected encoding #{encoding}, got #{message.encoding}"
       end
     end
 
@@ -937,10 +970,11 @@ defmodule Mailex.ParserTest do
 
   defp validate_parts(message, expected, test_name) do
     # Find Part_N keys in expected
-    part_keys = expected
-                |> Map.keys()
-                |> Enum.filter(&String.starts_with?(&1, "Part_"))
-                |> Enum.sort()
+    part_keys =
+      expected
+      |> Map.keys()
+      |> Enum.filter(&String.starts_with?(&1, "Part_"))
+      |> Enum.sort()
 
     if length(part_keys) > 0 and is_list(message.parts) do
       for part_key <- part_keys do
@@ -965,20 +999,22 @@ defmodule Mailex.ParserTest do
   defp validate_part(part, expected, context) do
     if type = expected["Type"] do
       [expected_type, expected_subtype] = String.split(type, "/")
+
       assert part.content_type.type == expected_type,
-        "#{context}: expected type #{expected_type}"
+             "#{context}: expected type #{expected_type}"
+
       assert part.content_type.subtype == expected_subtype,
-        "#{context}: expected subtype #{expected_subtype}"
+             "#{context}: expected subtype #{expected_subtype}"
     end
 
     if encoding = expected["Encoding"] do
       assert part.encoding == encoding,
-        "#{context}: expected encoding #{encoding}"
+             "#{context}: expected encoding #{encoding}"
     end
 
     if filename = expected["Filename"] do
       assert part.filename == filename,
-        "#{context}: expected filename #{filename}"
+             "#{context}: expected filename #{filename}"
     end
   end
 
@@ -1008,14 +1044,18 @@ defmodule Mailex.ParserTest do
     end
 
     test "parses folded header with UTF-8 across fold" do
-      raw = "From: sender@example.com\nSubject: This is a long subject with UTF-8 日本語\n that continues here\n\nBody.\n"
+      raw =
+        "From: sender@example.com\nSubject: This is a long subject with UTF-8 日本語\n that continues here\n\nBody.\n"
 
       assert {:ok, message} = Mailex.Parser.parse(raw)
-      assert message.headers["subject"] == "This is a long subject with UTF-8 日本語 that continues here"
+
+      assert message.headers["subject"] ==
+               "This is a long subject with UTF-8 日本語 that continues here"
     end
 
     test "parses multiple headers with mixed 8-bit and ASCII" do
-      raw = "From: Müller <muller@example.com>\nTo: Böb <bob@example.com>\nSubject: Grüße\n\nBody.\n"
+      raw =
+        "From: Müller <muller@example.com>\nTo: Böb <bob@example.com>\nSubject: Grüße\n\nBody.\n"
 
       assert {:ok, message} = Mailex.Parser.parse(raw)
       assert message.headers["from"] == "Müller <muller@example.com>"
@@ -1382,7 +1422,12 @@ defmodule Mailex.ParserTest do
       """
 
       assert {:ok, message} = Mailex.Parser.parse(raw)
-      assert message.references == ["root@example.com", "reply1@example.com", "reply2@example.com"]
+
+      assert message.references == [
+               "root@example.com",
+               "reply1@example.com",
+               "reply2@example.com"
+             ]
     end
 
     test "handles message-id with whitespace around angle brackets" do
@@ -1410,7 +1455,12 @@ defmodule Mailex.ParserTest do
       """
 
       assert {:ok, message} = Mailex.Parser.parse(raw)
-      assert message.references == ["root@example.com", "reply1@example.com", "reply2@example.com"]
+
+      assert message.references == [
+               "root@example.com",
+               "reply1@example.com",
+               "reply2@example.com"
+             ]
     end
 
     test "returns nil for missing message-id headers" do
@@ -1558,7 +1608,8 @@ defmodule Mailex.ParserTest do
     end
 
     test "parse_comment parses nested comment" do
-      assert {:ok, ["outer (inner) text"], "", _, _, _} = Mailex.Parser.parse_comment("(outer (inner) text)")
+      assert {:ok, ["outer (inner) text"], "", _, _, _} =
+               Mailex.Parser.parse_comment("(outer (inner) text)")
     end
 
     test "parse_comment handles escaped characters" do
@@ -1567,7 +1618,9 @@ defmodule Mailex.ParserTest do
     end
 
     test "parse_comment handles escaped backslash" do
-      assert {:ok, [content], "", _, _, _} = Mailex.Parser.parse_comment("(escaped \\\\ backslash)")
+      assert {:ok, [content], "", _, _, _} =
+               Mailex.Parser.parse_comment("(escaped \\\\ backslash)")
+
       assert content == "escaped \\ backslash"
     end
 
@@ -1582,7 +1635,7 @@ defmodule Mailex.ParserTest do
 
     test "strip_comments preserves quoted-strings with parentheses" do
       assert Mailex.Parser.strip_comments("text/plain; name=\"file (1).txt\"") ==
-             "text/plain; name=\"file (1).txt\""
+               "text/plain; name=\"file (1).txt\""
     end
 
     test "strip_comments handles multiple comments" do
@@ -1963,17 +2016,21 @@ defmodule Mailex.ParserTest do
       assert message.content_type.subtype == "alternative"
 
       # Find the multipart/related part
-      related_part = Enum.find(message.parts, fn part ->
-        part.content_type.type == "multipart" and part.content_type.subtype == "related"
-      end)
+      related_part =
+        Enum.find(message.parts, fn part ->
+          part.content_type.type == "multipart" and part.content_type.subtype == "related"
+        end)
 
       assert related_part != nil
-      assert related_part.related_root_index == 0  # First part is root (text/html)
+      # First part is root (text/html)
+      assert related_part.related_root_index == 0
 
       # Verify the parts have correct content IDs
-      image_part = Enum.find(related_part.parts, fn part ->
-        part.content_type.type == "image"
-      end)
+      image_part =
+        Enum.find(related_part.parts, fn part ->
+          part.content_type.type == "image"
+        end)
+
       assert image_part != nil
       assert image_part.content_id == "my-graphic"
     end
@@ -2023,7 +2080,13 @@ defmodule Mailex.ParserTest do
       input = "<root@example.com> <reply1@example.com> <reply2@example.com> <reply3@example.com>"
 
       assert {:ok, [ids], "", _, _, _} = Mailex.Parser.parse_msg_id_list(input)
-      assert ids == ["root@example.com", "reply1@example.com", "reply2@example.com", "reply3@example.com"]
+
+      assert ids == [
+               "root@example.com",
+               "reply1@example.com",
+               "reply2@example.com",
+               "reply3@example.com"
+             ]
     end
 
     test "parses msg-id list with folded whitespace (newline + space)" do
@@ -2224,7 +2287,8 @@ defmodule Mailex.ParserTest do
     end
 
     test "UTF-8 preserved through header folding" do
-      raw = "From: sender@example.com\nSubject: Long UTF-8 subject 日本語の長いサブジェクト\n that continues here\n\nBody.\n"
+      raw =
+        "From: sender@example.com\nSubject: Long UTF-8 subject 日本語の長いサブジェクト\n that continues here\n\nBody.\n"
 
       assert {:ok, message} = Mailex.Parser.parse(raw)
       assert message.headers["subject"] == "Long UTF-8 subject 日本語の長いサブジェクト that continues here"

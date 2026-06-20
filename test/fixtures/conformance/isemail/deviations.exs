@@ -23,7 +23,8 @@
   213 => "Domain label ends with hyphen: parser may accept as valid dot-atom",
 
   # Domain literal edge cases
-  149 => "obs-dtext (backslash in domain literal): parser doesn't support obsolete escaping in domain literals",
+  149 =>
+    "obs-dtext (backslash in domain literal): parser doesn't support obsolete escaping in domain literals",
   185 => "Comment in middle of domain: parser doesn't support CFWS between domain labels",
 
   # obs-local-part (mixed quoted/unquoted) - may need parser changes

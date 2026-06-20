@@ -12,7 +12,8 @@ defmodule Mailex.DateTimeParserTest do
       assert result.hour == 9
       assert result.minute == 55
       assert result.second == 6
-      assert result.zone_offset == -360  # -0600 in minutes
+      # -0600 in minutes
+      assert result.zone_offset == -360
       assert result.day_of_week == :mon
     end
 
@@ -33,7 +34,8 @@ defmodule Mailex.DateTimeParserTest do
 
     test "parses positive UTC offset" do
       assert {:ok, result} = DateTimeParser.parse("21 Nov 2022 09:55:06 +0530")
-      assert result.zone_offset == 330  # +0530 in minutes
+      # +0530 in minutes
+      assert result.zone_offset == 330
     end
 
     test "parses UTC zero offset" do
@@ -44,9 +46,18 @@ defmodule Mailex.DateTimeParserTest do
 
   describe "all month names" do
     @months [
-      {"Jan", 1}, {"Feb", 2}, {"Mar", 3}, {"Apr", 4},
-      {"May", 5}, {"Jun", 6}, {"Jul", 7}, {"Aug", 8},
-      {"Sep", 9}, {"Oct", 10}, {"Nov", 11}, {"Dec", 12}
+      {"Jan", 1},
+      {"Feb", 2},
+      {"Mar", 3},
+      {"Apr", 4},
+      {"May", 5},
+      {"Jun", 6},
+      {"Jul", 7},
+      {"Aug", 8},
+      {"Sep", 9},
+      {"Oct", 10},
+      {"Nov", 11},
+      {"Dec", 12}
     ]
 
     for {month_name, month_num} <- @months do
@@ -60,8 +71,13 @@ defmodule Mailex.DateTimeParserTest do
 
   describe "all day-of-week names" do
     @days [
-      {"Mon", :mon}, {"Tue", :tue}, {"Wed", :wed}, {"Thu", :thu},
-      {"Fri", :fri}, {"Sat", :sat}, {"Sun", :sun}
+      {"Mon", :mon},
+      {"Tue", :tue},
+      {"Wed", :wed},
+      {"Thu", :thu},
+      {"Fri", :fri},
+      {"Sat", :sat},
+      {"Sun", :sun}
     ]
 
     for {day_name, day_atom} <- @days do
@@ -101,7 +117,8 @@ defmodule Mailex.DateTimeParserTest do
 
     test "parses 3-digit year as 1900 + value" do
       assert {:ok, result} = DateTimeParser.parse("01 Jan 122 12:00:00 +0000")
-      assert result.year == 2022  # 1900 + 122
+      # 1900 + 122
+      assert result.year == 2022
     end
   end
 
@@ -229,7 +246,8 @@ defmodule Mailex.DateTimeParserTest do
       assert dt.hour == 9
       assert dt.minute == 55
       assert dt.second == 6
-      assert dt.utc_offset == 19800  # +0530 in seconds
+      # +0530 in seconds
+      assert dt.utc_offset == 19800
     end
 
     test "converts to UTC DateTime" do

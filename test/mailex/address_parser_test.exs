@@ -120,7 +120,9 @@ defmodule Mailex.AddressParserTest do
     end
 
     test "parses group with multiple mailboxes" do
-      assert {:ok, result} = AddressParser.parse_group("Team: alice@a.com, bob@b.com, carol@c.com;")
+      assert {:ok, result} =
+               AddressParser.parse_group("Team: alice@a.com, bob@b.com, carol@c.com;")
+
       assert result.type == :group
       assert result.name == "Team"
       assert length(result.members) == 3
@@ -134,7 +136,9 @@ defmodule Mailex.AddressParserTest do
     end
 
     test "parses group with display-names in mailboxes" do
-      assert {:ok, result} = AddressParser.parse_group("Team: Alice <alice@a.com>, Bob <bob@b.com>;")
+      assert {:ok, result} =
+               AddressParser.parse_group("Team: Alice <alice@a.com>, Bob <bob@b.com>;")
+
       assert result.type == :group
       assert result.name == "Team"
       assert length(result.members) == 2
@@ -167,7 +171,9 @@ defmodule Mailex.AddressParserTest do
     end
 
     test "parses multiple mailboxes" do
-      assert {:ok, addrs} = AddressParser.parse_address_list("alice@a.com, bob@b.com, carol@c.com")
+      assert {:ok, addrs} =
+               AddressParser.parse_address_list("alice@a.com, bob@b.com, carol@c.com")
+
       assert length(addrs) == 3
     end
 
@@ -203,7 +209,9 @@ defmodule Mailex.AddressParserTest do
     end
 
     test "handles escaped characters in comments" do
-      assert {:ok, result} = AddressParser.parse_mailbox("john@example.com (Comment \\) with paren)")
+      assert {:ok, result} =
+               AddressParser.parse_mailbox("john@example.com (Comment \\) with paren)")
+
       assert result.address == "john@example.com"
     end
   end

@@ -24,7 +24,11 @@ defmodule Mailex.Message do
 
   @type t :: %__MODULE__{
           headers: %{String.t() => String.t() | [String.t()]},
-          content_type: %{type: String.t(), subtype: String.t(), params: %{String.t() => String.t()}},
+          content_type: %{
+            type: String.t(),
+            subtype: String.t(),
+            params: %{String.t() => String.t()}
+          },
           encoding: String.t(),
           body: binary() | nil,
           parts: [t()] | nil,
@@ -38,5 +42,19 @@ defmodule Mailex.Message do
           related_root_index: non_neg_integer() | nil
         }
 
-  defstruct [:headers, :content_type, :encoding, :body, :parts, :filename, :disposition_type, :disposition_params, :message_id, :in_reply_to, :references, :content_id, :related_root_index]
+  defstruct [
+    :headers,
+    :content_type,
+    :encoding,
+    :body,
+    :parts,
+    :filename,
+    :disposition_type,
+    :disposition_params,
+    :message_id,
+    :in_reply_to,
+    :references,
+    :content_id,
+    :related_root_index
+  ]
 end
