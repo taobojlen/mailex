@@ -103,6 +103,32 @@ The parser returns a `%Mailex.Message{}` struct with the following fields:
 - Mbox format "From " line handling
 - CRLF and LF line ending normalization
 
+## Character encodings
+
+Mailex decodes text headers and bodies to UTF-8. UTF-8 and US-ASCII work with no
+configuration. Legacy charsets (`iso-8859-*` and `windows-125x`) are transcoded
+with codepagex, which only compiles the ISO-8859 family by default. To handle the
+Windows codepages, list the encodings you need in your config and recompile
+codepagex:
+
+```elixir
+# config/config.exs
+config :codepagex, :encodings, [
+  "ISO8859/8859-1",
+  "ISO8859/8859-15",
+  "VENDORS/MICSFT/WINDOWS/CP1252"
+  # ...and any others you need
+]
+```
+
+```bash
+mix deps.compile codepagex --force
+```
+
+Setting `:encodings` replaces codepagex's default, so re-list any ISO-8859
+encodings you rely on. Charsets you don't configure are left as-is. See the
+codepagex docs for the full list of encoding names.
+
 ## Examples
 
 ### Multipart message
