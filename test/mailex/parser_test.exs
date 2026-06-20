@@ -585,6 +585,51 @@ defmodule Mailex.ParserTest do
       # ISO-8859-5: BF=П, E0=р, D8=и, D2=в, D5=е, E2=т -> "Привет" (Hello in Russian)
       assert message.body == "Привет"
     end
+
+    test "converts windows-1252 charset to UTF-8 (body)" do
+      raw = """
+      From: test@example.com
+      Content-Type: text/plain; charset=windows-1252
+      Content-Transfer-Encoding: quoted-printable
+
+      Caf=E9 =97 ready
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      # windows-1252: 0xE9 = é, 0x97 = — (U+2014, in the cp1252-specific range)
+      assert String.valid?(message.body)
+      assert String.trim(message.body) == "Café — ready"
+    end
+
+    test "converts windows-1252 in an RFC 2047 encoded-word to UTF-8" do
+      # windows-1252: 0x93/0x94 = “ ” curly quotes, 0x96 = – en dash
+      encoded = "=?windows-1252?Q?=93Hi=94_=96_there?="
+
+      decoded = Mailex.Parser.decode_rfc2047(encoded)
+
+      assert String.valid?(decoded)
+      assert decoded == "“Hi” – there"
+    end
+
+    test "accepts cp1252 as an alias for windows-1252" do
+      # 0x85 = … (ellipsis), a cp1252-specific byte
+      encoded = "=?cp1252?Q?Wait=85?="
+      assert Mailex.Parser.decode_rfc2047(encoded) == "Wait…"
+    end
+
+    test "converts windows-1251 (Cyrillic) charset to UTF-8" do
+      raw = """
+      From: test@example.com
+      Content-Type: text/plain; charset=windows-1251
+      Content-Transfer-Encoding: quoted-printable
+
+      =CF=F0=E8=E2=E5=F2
+      """
+
+      assert {:ok, message} = Mailex.Parser.parse(raw)
+      assert String.valid?(message.body)
+      assert String.trim(message.body) == "Привет"
+    end
   end
 
   describe "edge cases and malformed messages" do

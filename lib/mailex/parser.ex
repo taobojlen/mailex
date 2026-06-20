@@ -1021,8 +1021,11 @@ defmodule Mailex.Parser do
     |> String.replace("_", "-")
   end
 
-  # Map common charset names to codepagex encoding strings
-  # Codepagex uses "ISO8859/8859-X" format for ISO-8859 charsets
+  # Map common charset names to codepagex encoding strings.
+  #
+  # The windows-* / cp* codepages must also be compiled into codepagex by the
+  # host app via `config :codepagex, :encodings` (see the README); otherwise
+  # codepagex returns an error and the text is left as-is.
   defp codepagex_encoding(charset) do
     case charset do
       "iso-8859-1" -> "ISO8859/8859-1"
@@ -1040,8 +1043,24 @@ defmodule Mailex.Parser do
       "iso-8859-14" -> "ISO8859/8859-14"
       "iso-8859-15" -> "ISO8859/8859-15"
       "iso-8859-16" -> "ISO8859/8859-16"
-      # Windows and other encodings can be added by configuring codepagex
-      # See: https://hexdocs.pm/codepagex/readme.html#selecting-encodings
+      "windows-1250" -> "VENDORS/MICSFT/WINDOWS/CP1250"
+      "windows-1251" -> "VENDORS/MICSFT/WINDOWS/CP1251"
+      "windows-1252" -> "VENDORS/MICSFT/WINDOWS/CP1252"
+      "windows-1253" -> "VENDORS/MICSFT/WINDOWS/CP1253"
+      "windows-1254" -> "VENDORS/MICSFT/WINDOWS/CP1254"
+      "windows-1255" -> "VENDORS/MICSFT/WINDOWS/CP1255"
+      "windows-1256" -> "VENDORS/MICSFT/WINDOWS/CP1256"
+      "windows-1257" -> "VENDORS/MICSFT/WINDOWS/CP1257"
+      "windows-1258" -> "VENDORS/MICSFT/WINDOWS/CP1258"
+      "cp1250" -> "VENDORS/MICSFT/WINDOWS/CP1250"
+      "cp1251" -> "VENDORS/MICSFT/WINDOWS/CP1251"
+      "cp1252" -> "VENDORS/MICSFT/WINDOWS/CP1252"
+      "cp1253" -> "VENDORS/MICSFT/WINDOWS/CP1253"
+      "cp1254" -> "VENDORS/MICSFT/WINDOWS/CP1254"
+      "cp1255" -> "VENDORS/MICSFT/WINDOWS/CP1255"
+      "cp1256" -> "VENDORS/MICSFT/WINDOWS/CP1256"
+      "cp1257" -> "VENDORS/MICSFT/WINDOWS/CP1257"
+      "cp1258" -> "VENDORS/MICSFT/WINDOWS/CP1258"
       _ -> nil
     end
   end
