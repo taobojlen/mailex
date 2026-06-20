@@ -10,6 +10,10 @@ defmodule Mailex.MixProject do
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
+      test_ignore_filters: [
+        &String.starts_with?(&1, "test/support/"),
+        &String.starts_with?(&1, "test/fixtures/")
+      ],
       name: "Mailex",
       source_url: "https://github.com/taobojlen/mailex",
       homepage_url: "https://github.com/taobojlen/mailex",

@@ -125,7 +125,7 @@ defmodule Mailex.Conformance.SpamScopeMailParserMessageTest do
   defp count_attachments(%{parts: parts}) do
     Enum.reduce(parts, 0, fn part, acc ->
       is_attachment = part.disposition_type == "attachment" or part.filename != nil
-      acc + (if is_attachment, do: 1, else: 0) + count_attachments(part)
+      acc + if(is_attachment, do: 1, else: 0) + count_attachments(part)
     end)
   end
 

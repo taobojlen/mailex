@@ -40,7 +40,8 @@ defmodule Mailex.AddressParser do
 
   ctext = ascii_char([0x21..0x27, 0x2A..0x5B, 0x5D..0x7E])
 
-  defcombinatorp :comment_content,
+  defcombinatorp(
+    :comment_content,
     repeat(
       choice([
         ctext |> ignore(),
@@ -49,11 +50,14 @@ defmodule Mailex.AddressParser do
         fws
       ])
     )
+  )
 
-  defcombinatorp :nested_comment,
+  defcombinatorp(
+    :nested_comment,
     ignore(ascii_char([?(]))
     |> concat(parsec(:comment_content))
     |> ignore(ascii_char([?)]))
+  )
 
   comment =
     ignore(ascii_char([?(]))
@@ -63,11 +67,35 @@ defmodule Mailex.AddressParser do
   # Use defcombinatorp for cfws to reduce code duplication - this is used ~13 times
   # and generates substantial code for comment parsing. Using parsec(:cfws) generates
   # a function call instead of inlining all the code each time.
-  defcombinatorp :cfws, times(choice([fws, comment]), min: 1) |> ignore()
-  defcombinatorp :optional_cfws, optional(parsec(:cfws))
+  defcombinatorp(:cfws, times(choice([fws, comment]), min: 1) |> ignore())
+  defcombinatorp(:optional_cfws, optional(parsec(:cfws)))
 
   # RFC 5322 atext: printable ASCII characters excluding specials
-  ascii_atext = ascii_char([?a..?z, ?A..?Z, ?0..?9, ?!, ?#, ?$, ?%, ?&, ?', ?*, ?+, ?-, ?/, ?=, ??, ?^, ?_, ?`, ?{, ?|, ?}, ?~])
+  ascii_atext =
+    ascii_char([
+      ?a..?z,
+      ?A..?Z,
+      ?0..?9,
+      ?!,
+      ?#,
+      ?$,
+      ?%,
+      ?&,
+      ?',
+      ?*,
+      ?+,
+      ?-,
+      ?/,
+      ?=,
+      ??,
+      ?^,
+      ?_,
+      ?`,
+      ?{,
+      ?|,
+      ?},
+      ?~
+    ])
 
   # RFC 6532 UTF8-non-ascii: any UTF-8 character outside ASCII range (codepoints > 127)
   # Use explicit range 128..0x10FFFF for better NimbleParsec code generation
@@ -77,10 +105,12 @@ defmodule Mailex.AddressParser do
   atext = choice([ascii_atext, utf8_non_ascii])
 
   # Define dot_atom_text as a combinator to share code
-  defcombinatorp :dot_atom_text,
+  defcombinatorp(
+    :dot_atom_text,
     times(atext, min: 1)
     |> repeat(string(".") |> concat(times(atext, min: 1)))
     |> reduce({__MODULE__, :codepoints_to_string, []})
+  )
 
   dot_atom_text = parsec(:dot_atom_text)
 
@@ -238,7 +268,7 @@ defmodule Mailex.AddressParser do
   # entry points significantly improves compilation speed.
   #
   # The other parse_* functions reuse this parser and validate results.
-  defparsec :do_parse_address_list, address_list |> eos()
+  defparsec(:do_parse_address_list, address_list |> eos())
 
   # ===========================================================================
   # Public API
@@ -267,8 +297,12 @@ defmodule Mailex.AddressParser do
           [local, domain] -> {:ok, %{local_part: local, domain: domain}}
           _ -> {:error, "invalid addr-spec"}
         end
-      {:ok, _} -> {:error, "expected single addr-spec"}
-      error -> error
+
+      {:ok, _} ->
+        {:error, "expected single addr-spec"}
+
+      error ->
+        error
     end
   end
 
@@ -460,26 +494,29 @@ defmodule Mailex.AddressParser do
   end
 
   defp extract_name_addr(args) do
-    display_name = Enum.find_value(args, fn
-      {:display_name, name} -> name
-      _ -> nil
-    end)
+    display_name =
+      Enum.find_value(args, fn
+        {:display_name, name} -> name
+        _ -> nil
+      end)
 
     addr = Enum.find(args, &is_map/1)
     {display_name || "", addr}
   end
 
   defp extract_group(args) do
-    name = Enum.find_value(args, fn
-      {:group_name, n} -> n
-      _ -> nil
-    end)
+    name =
+      Enum.find_value(args, fn
+        {:group_name, n} -> n
+        _ -> nil
+      end)
 
-    members = Enum.find_value(args, fn
-      {:members, [m]} when is_list(m) -> m
-      {:members, _} -> []
-      _ -> nil
-    end) || []
+    members =
+      Enum.find_value(args, fn
+        {:members, [m]} when is_list(m) -> m
+        {:members, _} -> []
+        _ -> nil
+      end) || []
 
     {name || "", members}
   end

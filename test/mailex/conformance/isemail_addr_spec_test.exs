@@ -26,10 +26,10 @@ defmodule Mailex.Conformance.IsEmailAddrSpecTest do
 
   # Load known deviations
   @deviations (
-    path = Path.join([TestFixtures.conformance_dir(), "isemail", "deviations.exs"])
-    {deviations, _} = Code.eval_file(path)
-    deviations
-  )
+                path = Path.join([TestFixtures.conformance_dir(), "isemail", "deviations.exs"])
+                {deviations, _} = Code.eval_file(path)
+                deviations
+              )
 
   # Determine expected outcome based on category
   defp expected_outcome(%{category: "ISEMAIL_ERR"}), do: :error
@@ -75,10 +75,12 @@ defmodule Mailex.Conformance.IsEmailAddrSpecTest do
       else
         case expected do
           :ok ->
-            assert match?({:ok, _}, result), failure_message(case_data, address, result, :should_parse)
+            assert match?({:ok, _}, result),
+                   failure_message(case_data, address, result, :should_parse)
 
           :error ->
-            assert match?({:error, _}, result), failure_message(case_data, address, result, :should_fail)
+            assert match?({:error, _}, result),
+                   failure_message(case_data, address, result, :should_fail)
         end
       end
     end

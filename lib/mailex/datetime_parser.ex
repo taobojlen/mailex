@@ -27,15 +27,15 @@ defmodule Mailex.DateTimeParser do
   ]
 
   @type t :: %__MODULE__{
-    day_of_week: :mon | :tue | :wed | :thu | :fri | :sat | :sun | nil,
-    day: 1..31,
-    month: 1..12,
-    year: non_neg_integer(),
-    hour: 0..23,
-    minute: 0..59,
-    second: 0..60,
-    zone_offset: integer()
-  }
+          day_of_week: :mon | :tue | :wed | :thu | :fri | :sat | :sun | nil,
+          day: 1..31,
+          month: 1..12,
+          year: non_neg_integer(),
+          hour: 0..23,
+          minute: 0..59,
+          second: 0..60,
+          zone_offset: integer()
+        }
 
   # ===========================================================================
   # Lexical primitives
@@ -54,11 +54,15 @@ defmodule Mailex.DateTimeParser do
   ctext = ascii_char([0x21..0x27, 0x2A..0x5B, 0x5D..0x7E])
   quoted_pair = ignore(string("\\")) |> ascii_char([0x00..0x7F])
 
-  defcombinatorp :comment_content,
+  defcombinatorp(
+    :comment_content,
     repeat(choice([ctext |> ignore(), quoted_pair |> ignore(), parsec(:dt_nested_comment), fws]))
+  )
 
-  defcombinatorp :dt_nested_comment,
+  defcombinatorp(
+    :dt_nested_comment,
     ignore(ascii_char([?(])) |> concat(parsec(:comment_content)) |> ignore(ascii_char([?)]))
+  )
 
   comment =
     ignore(ascii_char([?(]))
@@ -197,7 +201,7 @@ defmodule Mailex.DateTimeParser do
     |> concat(optional_cfws)
     |> post_traverse({__MODULE__, :build_datetime, []})
 
-  defparsec :do_parse, date_time |> eos()
+  defparsec(:do_parse, date_time |> eos())
 
   # ===========================================================================
   # Public API
@@ -256,15 +260,23 @@ defmodule Mailex.DateTimeParser do
     offset_seconds = dt.zone_offset * 60
 
     case DateTime.new(
-      Date.new!(dt.year, dt.month, dt.day),
-      Time.new!(dt.hour, dt.minute, dt.second || 0),
-      "Etc/UTC",
-      offset_seconds
-    ) do
+           Date.new!(dt.year, dt.month, dt.day),
+           Time.new!(dt.hour, dt.minute, dt.second || 0),
+           "Etc/UTC",
+           offset_seconds
+         ) do
       {:ok, datetime} ->
-        datetime = %{datetime | utc_offset: offset_seconds, std_offset: 0, zone_abbr: zone_abbr(dt.zone_offset)}
+        datetime = %{
+          datetime
+          | utc_offset: offset_seconds,
+            std_offset: 0,
+            zone_abbr: zone_abbr(dt.zone_offset)
+        }
+
         {:ok, datetime}
-      error -> error
+
+      error ->
+        error
     end
   end
 
@@ -301,7 +313,11 @@ defmodule Mailex.DateTimeParser do
     base_date = Date.new!(dt.year, dt.month, dt.day)
     adjusted_date = Date.add(base_date, days_delta)
 
-    DateTime.new(adjusted_date, Time.new!(adjusted_hour, remaining_minutes, dt.second || 0), "Etc/UTC")
+    DateTime.new(
+      adjusted_date,
+      Time.new!(adjusted_hour, remaining_minutes, dt.second || 0),
+      "Etc/UTC"
+    )
   end
 
   # ===========================================================================
@@ -319,6 +335,7 @@ defmodule Mailex.DateTimeParser do
       second: Keyword.get(args, :second, 0),
       zone_offset: Keyword.get(args, :zone_offset)
     }
+
     {rest, [result], context}
   end
 
@@ -349,15 +366,19 @@ defmodule Mailex.DateTimeParser do
   end
 
   defp zone_abbr(0), do: "UTC"
+
   defp zone_abbr(offset) when offset > 0 do
     hours = div(offset, 60)
     mins = rem(offset, 60)
+
     "+#{String.pad_leading(Integer.to_string(hours), 2, "0")}#{String.pad_leading(Integer.to_string(mins), 2, "0")}"
   end
+
   defp zone_abbr(offset) do
     offset = abs(offset)
     hours = div(offset, 60)
     mins = rem(offset, 60)
+
     "-#{String.pad_leading(Integer.to_string(hours), 2, "0")}#{String.pad_leading(Integer.to_string(mins), 2, "0")}"
   end
 end

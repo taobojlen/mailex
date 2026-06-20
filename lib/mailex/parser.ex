@@ -25,19 +25,23 @@ defmodule Mailex.Parser do
   # Forward declaration for nested comments - we'll use lookahead/recursion
   # ccontent = ctext / quoted-pair / comment
   # comment = "(" *([FWS] ccontent) [FWS] ")"
-  defcombinatorp :comment_content,
+  defcombinatorp(
+    :comment_content,
     choice([
       comment_quoted_pair,
       ctext,
       # Nested comment - recursively parse and wrap in parens for reconstruction
       parsec(:nested_comment)
     ])
+  )
 
-  defcombinatorp :nested_comment,
+  defcombinatorp(
+    :nested_comment,
     ignore(string("("))
     |> repeat(parsec(:comment_content))
     |> ignore(string(")"))
     |> reduce({__MODULE__, :wrap_nested_comment, []})
+  )
 
   # Top-level comment parser
   comment =
@@ -46,7 +50,7 @@ defmodule Mailex.Parser do
     |> ignore(string(")"))
     |> reduce({:erlang, :list_to_binary, []})
 
-  defparsec :parse_comment, comment
+  defparsec(:parse_comment, comment)
 
   # RFC 2045 §5.1 token parser
   # token := 1*<any (US-ASCII) CHAR except SPACE, CTLs, or tspecials>
@@ -77,7 +81,7 @@ defmodule Mailex.Parser do
       min: 1
     )
 
-  defparsec :parse_token, token
+  defparsec(:parse_token, token)
 
   # RFC 5322 §3.6.4 Message Identification Fields
   # msg-id = [CFWS] "<" id-left "@" id-right ">" [CFWS]
@@ -89,8 +93,28 @@ defmodule Mailex.Parser do
   # specials = "(" / ")" / "<" / ">" / "[" / "]" / ":" / ";" / "@" / "\" / "," / "." / DQUOTE
   atext =
     ascii_char([
-      ?a..?z, ?A..?Z, ?0..?9,
-      ?!, ?#, ?$, ?%, ?&, ?', ?*, ?+, ?-, ?/, ?=, ??, ?^, ?_, ?`, ?{, ?|, ?}, ?~
+      ?a..?z,
+      ?A..?Z,
+      ?0..?9,
+      ?!,
+      ?#,
+      ?$,
+      ?%,
+      ?&,
+      ?',
+      ?*,
+      ?+,
+      ?-,
+      ?/,
+      ?=,
+      ??,
+      ?^,
+      ?_,
+      ?`,
+      ?{,
+      ?|,
+      ?},
+      ?~
     ])
 
   # dot-atom-text = 1*atext *("." 1*atext)
@@ -151,7 +175,7 @@ defmodule Mailex.Parser do
     |> optional(cfws)
     |> reduce({__MODULE__, :join_msg_id, []})
 
-  defparsec :parse_msg_id, msg_id
+  defparsec(:parse_msg_id, msg_id)
 
   # msg-id-list = 1*msg-id (for In-Reply-To and References)
   msg_id_list =
@@ -160,7 +184,7 @@ defmodule Mailex.Parser do
     |> optional(cfws)
     |> wrap()
 
-  defparsec :parse_msg_id_list, msg_id_list
+  defparsec(:parse_msg_id_list, msg_id_list)
 
   @doc false
   def join_no_fold_literal(["[", content, "]"]), do: "[" <> content <> "]"
@@ -178,7 +202,7 @@ defmodule Mailex.Parser do
   # Folded lines start with whitespace
   # Match any byte except CR/LF for header body content
   # RFC 5322 §4 obs-text allows bytes 128-255, RFC 6532 allows UTF-8
-  field_body_char = ascii_char([not: ?\r, not: ?\n])
+  field_body_char = ascii_char(not: ?\r, not: ?\n)
 
   field_body_line =
     repeat(field_body_char)
@@ -213,7 +237,7 @@ defmodule Mailex.Parser do
   # This ensures we detect end-of-headers by blank line, not by parse failure
   malformed_line =
     lookahead_not(crlf)
-    |> repeat(ascii_char([not: ?\r, not: ?\n]))
+    |> repeat(ascii_char(not: ?\r, not: ?\n))
     |> ignore()
 
   # A header line is either a valid header field or a malformed line to skip
@@ -235,7 +259,7 @@ defmodule Mailex.Parser do
     |> ignore(optional(crlf))
     |> post_traverse({__MODULE__, :parse_message, []})
 
-  defparsec :parse_headers, message
+  defparsec(:parse_headers, message)
 
   @doc """
   Parses a raw email message string into a structured map.
@@ -285,6 +309,7 @@ defmodule Mailex.Parser do
       _ -> rest
     end
   end
+
   defp skip_mbox_line(raw), do: raw
 
   @doc false
@@ -405,6 +430,7 @@ defmodule Mailex.Parser do
   defp decode_header_value(key, value) when key in ["subject", "comments"] do
     decode_rfc2047(value)
   end
+
   # For other headers, only decode if they contain encoded-word patterns
   defp decode_header_value(_key, value) do
     if String.contains?(value, "=?") and String.contains?(value, "?=") do
@@ -416,8 +442,11 @@ defmodule Mailex.Parser do
 
   # Parse Content-Type header
   # RFC 2045 §5.2: Default is text/plain; charset=us-ascii
-  defp parse_content_type(nil), do: %{type: "text", subtype: "plain", params: %{"charset" => "us-ascii"}}
+  defp parse_content_type(nil),
+    do: %{type: "text", subtype: "plain", params: %{"charset" => "us-ascii"}}
+
   defp parse_content_type(value) when is_list(value), do: parse_content_type(List.first(value))
+
   defp parse_content_type(value) do
     # Strip RFC 5322 comments before tokenizing
     value = strip_comments(value)
@@ -490,8 +519,11 @@ defmodule Mailex.Parser do
   # Parse a single parameter token "key=value" respecting quoted-strings
   defp parse_param_token(part) do
     part = String.trim(part)
+
     case find_first_equals_outside_quotes(part) do
-      nil -> nil
+      nil ->
+        nil
+
       pos ->
         key = part |> String.slice(0, pos) |> String.trim() |> String.downcase()
         value = part |> String.slice((pos + 1)..-1//1) |> String.trim() |> unquote_value()
@@ -505,13 +537,17 @@ defmodule Mailex.Parser do
   end
 
   defp find_equals("", _pos, _in_quote), do: nil
+
   defp find_equals(<<"\\", _, rest::binary>>, pos, true = in_quote) do
     find_equals(rest, pos + 2, in_quote)
   end
+
   defp find_equals(<<"\"", rest::binary>>, pos, in_quote) do
     find_equals(rest, pos + 1, not in_quote)
   end
+
   defp find_equals(<<"=", _rest::binary>>, pos, false), do: pos
+
   defp find_equals(<<_, rest::binary>>, pos, in_quote) do
     find_equals(rest, pos + 1, in_quote)
   end
@@ -605,10 +641,12 @@ defmodule Mailex.Parser do
   end
 
   defp decode_percent_chars([], acc), do: acc
+
   defp decode_percent_chars([?%, h1, h2 | rest], acc) do
     byte = List.to_integer([h1, h2], 16)
     decode_percent_chars(rest, [byte | acc])
   end
+
   defp decode_percent_chars([char | rest], acc) do
     decode_percent_chars(rest, [char | acc])
   end
@@ -670,11 +708,12 @@ defmodule Mailex.Parser do
       parsed_parts = Enum.map(parts, &parse_part(&1, default_type))
 
       # RFC 2387: For multipart/related, resolve the root part index
-      related_root_index = if message.content_type.subtype == "related" do
-        resolve_related_root(message.content_type.params, parsed_parts)
-      else
-        nil
-      end
+      related_root_index =
+        if message.content_type.subtype == "related" do
+          resolve_related_root(message.content_type.params, parsed_parts)
+        else
+          nil
+        end
 
       %{message | parts: parsed_parts, body: nil, related_root_index: related_root_index}
     else
@@ -697,8 +736,8 @@ defmodule Mailex.Parser do
 
         # Find the part whose Content-ID matches
         case Enum.find_index(parts, fn part ->
-          part.content_id == start_id
-        end) do
+               part.content_id == start_id
+             end) do
           nil ->
             # No matching Content-ID found: fall back to first part
             0
@@ -708,6 +747,7 @@ defmodule Mailex.Parser do
         end
     end
   end
+
   defp resolve_related_root(_params, _parts), do: nil
 
   # Strip angle brackets from a Content-ID reference value
@@ -718,6 +758,7 @@ defmodule Mailex.Parser do
     |> String.trim_trailing(">")
     |> String.trim()
   end
+
   defp strip_angle_brackets(_), do: nil
 
   # Split multipart body into parts using line-by-line parsing
@@ -753,6 +794,7 @@ defmodule Mailex.Parser do
         case state do
           :preamble ->
             Enum.reverse(parts)
+
           :in_part ->
             Enum.reverse([finalize_part(current_lines) | parts])
         end
@@ -763,6 +805,7 @@ defmodule Mailex.Parser do
           :preamble ->
             # Transition from preamble to first part
             parse_multipart_lines(rest, delimiter, close, :in_part, [], parts)
+
           :in_part ->
             # End current part, start new one
             new_parts = [finalize_part(current_lines) | parts]
@@ -775,6 +818,7 @@ defmodule Mailex.Parser do
           :preamble ->
             # Ignore preamble content
             parse_multipart_lines(rest, delimiter, close, :preamble, [], parts)
+
           :in_part ->
             # Add to current part
             parse_multipart_lines(rest, delimiter, close, :in_part, [line | current_lines], parts)
@@ -786,6 +830,7 @@ defmodule Mailex.Parser do
   # Line must start with delimiter, remainder must be empty or only LWSP
   defp is_boundary_line?(line, delimiter) do
     delimiter_len = String.length(delimiter)
+
     if String.starts_with?(line, delimiter) do
       remainder = String.slice(line, delimiter_len, String.length(line) - delimiter_len)
       lwsp_only?(remainder)
@@ -798,6 +843,7 @@ defmodule Mailex.Parser do
   # Line must start with delimiter + "--", remainder must be empty or only LWSP
   defp is_close_boundary_line?(line, close_delimiter) do
     close_len = String.length(close_delimiter)
+
     if String.starts_with?(line, close_delimiter) do
       remainder = String.slice(line, close_len, String.length(line) - close_len)
       lwsp_only?(remainder)
@@ -826,9 +872,11 @@ defmodule Mailex.Parser do
         # Extract filename from Content-Disposition if present
         parsed = extract_filename(parsed)
         parsed
+
       {:error, _} ->
         # If parsing fails, treat as plain text
         {type, subtype} = parse_default_type(default_type)
+
         %Message{
           headers: %{},
           content_type: %{type: type, subtype: subtype, params: %{}},
@@ -849,6 +897,7 @@ defmodule Mailex.Parser do
 
   # Apply default type if the part has no Content-Type header
   defp apply_default_type(parsed, nil), do: parsed
+
   defp apply_default_type(parsed, default_type) do
     if parsed.headers["content-type"] == nil do
       {type, subtype} = parse_default_type(default_type)
@@ -860,6 +909,7 @@ defmodule Mailex.Parser do
   end
 
   defp parse_default_type(nil), do: {"text", "plain"}
+
   defp parse_default_type(type_str) do
     case String.split(type_str, "/", parts: 2) do
       [type, subtype] -> {String.downcase(type), String.downcase(subtype)}
@@ -869,7 +919,8 @@ defmodule Mailex.Parser do
 
   # Parse Content-Disposition header and extract filename, disposition_type, disposition_params
   defp extract_filename(message) do
-    {disposition_type, disposition_params} = parse_content_disposition(message.headers["content-disposition"])
+    {disposition_type, disposition_params} =
+      parse_content_disposition(message.headers["content-disposition"])
 
     # Get filename from disposition params, falling back to Content-Type name parameter
     filename = disposition_params["filename"] || message.content_type.params["name"]
@@ -877,17 +928,21 @@ defmodule Mailex.Parser do
     # Decode RFC 2047 encoded words in filename
     filename = decode_rfc2047(filename)
 
-    %{message |
-      filename: filename,
-      disposition_type: disposition_type,
-      disposition_params: disposition_params
+    %{
+      message
+      | filename: filename,
+        disposition_type: disposition_type,
+        disposition_params: disposition_params
     }
   end
 
   # Parse Content-Disposition header
   # RFC 2183 §2: disposition := disposition-type *(";" disposition-parm)
   defp parse_content_disposition(nil), do: {nil, %{}}
-  defp parse_content_disposition(value) when is_list(value), do: parse_content_disposition(List.first(value))
+
+  defp parse_content_disposition(value) when is_list(value),
+    do: parse_content_disposition(List.first(value))
+
   defp parse_content_disposition(value) do
     # Strip RFC 5322 comments before tokenizing
     value = strip_comments(value)
@@ -909,6 +964,7 @@ defmodule Mailex.Parser do
     case parse(body) do
       {:ok, embedded} ->
         %{message | body: nil, parts: [embedded]}
+
       {:error, _} ->
         %{message | body: body}
     end
@@ -916,11 +972,12 @@ defmodule Mailex.Parser do
 
   # Decode body based on encoding, then convert charset to UTF-8 for text content
   defp decode_body(body, encoding, charset, is_text) do
-    decoded = case encoding do
-      "base64" -> decode_base64(body)
-      "quoted-printable" -> decode_quoted_printable(body)
-      _ -> body
-    end
+    decoded =
+      case encoding do
+        "base64" -> decode_base64(body)
+        "quoted-printable" -> decode_quoted_printable(body)
+        _ -> body
+      end
 
     # Convert charset to UTF-8 for text content
     if is_text and charset do
@@ -949,7 +1006,8 @@ defmodule Mailex.Parser do
           encoding ->
             case Codepagex.to_string(text, encoding) do
               {:ok, converted} -> converted
-              {:error, _} -> text  # Conversion failed, return as-is
+              # Conversion failed, return as-is
+              {:error, _} -> text
             end
         end
     end
@@ -1001,7 +1059,8 @@ defmodule Mailex.Parser do
 
   defp decode_quoted_printable(body) do
     body
-    |> String.replace("=\n", "")  # Soft line breaks
+    # Soft line breaks
+    |> String.replace("=\n", "")
     |> String.replace("=\r\n", "")
     |> decode_qp_chars()
   end
@@ -1018,6 +1077,7 @@ defmodule Mailex.Parser do
   # msg-id = [CFWS] "<" id-left "@" id-right ">" [CFWS]
   defp extract_message_id(nil), do: nil
   defp extract_message_id(value) when is_list(value), do: extract_message_id(List.first(value))
+
   defp extract_message_id(value) do
     case extract_msg_ids(value) do
       [id | _] -> id
@@ -1027,6 +1087,7 @@ defmodule Mailex.Parser do
 
   # Extract a list of message-ids from In-Reply-To or References headers
   defp extract_msg_id_list(nil), do: nil
+
   defp extract_msg_id_list(value) when is_list(value) do
     value
     |> Enum.flat_map(&extract_msg_ids/1)
@@ -1035,6 +1096,7 @@ defmodule Mailex.Parser do
       ids -> ids
     end
   end
+
   defp extract_msg_id_list(value) do
     case extract_msg_ids(value) do
       [] -> nil
@@ -1076,6 +1138,7 @@ defmodule Mailex.Parser do
   # Format: [CFWS] "<" id ">" [CFWS] or just the id value
   defp extract_content_id(nil), do: nil
   defp extract_content_id(value) when is_list(value), do: extract_content_id(List.first(value))
+
   defp extract_content_id(value) do
     value = String.trim(value)
 
@@ -1116,6 +1179,7 @@ defmodule Mailex.Parser do
   """
   @spec decode_rfc2047(binary() | nil) :: binary() | nil
   def decode_rfc2047(nil), do: nil
+
   def decode_rfc2047(str) do
     # First, collapse whitespace between adjacent encoded-words
     # RFC 2047 §6.2: Any 'linear-white-space' between 'encoded-word's is ignored
@@ -1126,17 +1190,19 @@ defmodule Mailex.Parser do
     # charset can include language tag like US-ASCII*EN (RFC 2231)
     pattern = ~r/=\?([^?*]+)(?:\*[^?]*)?\?([BbQq])\?([^?]*)\?=/
 
-    decoded = Regex.replace(pattern, str, fn _, charset, encoding, encoded_text ->
-      # Decode the bytes first
-      decoded_bytes = case String.upcase(encoding) do
-        "B" -> decode_base64_to_binary(encoded_text)
-        "Q" -> decode_q_encoding_to_binary(encoded_text)
-        _ -> encoded_text
-      end
+    decoded =
+      Regex.replace(pattern, str, fn _, charset, encoding, encoded_text ->
+        # Decode the bytes first
+        decoded_bytes =
+          case String.upcase(encoding) do
+            "B" -> decode_base64_to_binary(encoded_text)
+            "Q" -> decode_q_encoding_to_binary(encoded_text)
+            _ -> encoded_text
+          end
 
-      # Convert from charset to UTF-8
-      convert_charset(decoded_bytes, charset)
-    end)
+        # Convert from charset to UTF-8
+        convert_charset(decoded_bytes, charset)
+      end)
 
     decoded
   end
