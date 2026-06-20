@@ -7,7 +7,7 @@ defmodule Mailex.MixProject do
     [
       app: :mailex,
       version: @version,
-      elixir: "~> 1.19",
+      elixir: "~> 1.17",
       start_permanent: Mix.env() == :prod,
       deps: deps(),
       test_ignore_filters: [
