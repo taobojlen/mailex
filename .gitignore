@@ -22,3 +22,6 @@ erl_crash.dump
 # Ignore package tarball (built via "mix hex.build").
 mailex-*.tar
 
+# Claude Code local session/settings directory.
+/.claude/
+
