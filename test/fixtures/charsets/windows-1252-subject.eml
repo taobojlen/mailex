@@ -1,0 +1,8 @@
+From: News <news@example.com>
+To: subscriber@example.net
+Subject: =?windows-1252?Q?Your_weekly_digest_=97_what=92s_new?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
+
+Hello there, here is your weekly update.
