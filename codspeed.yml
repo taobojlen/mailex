@@ -1,0 +1,47 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/CodSpeedHQ/codspeed/refs/heads/main/schemas/codspeed.schema.json
+$schema: https://raw.githubusercontent.com/CodSpeedHQ/codspeed/refs/heads/main/schemas/codspeed.schema.json
+
+# Benchmarks are plain Elixir scripts measured by the CodSpeed exec harness in
+# walltime mode: the BEAM cannot be measured under CPU simulation, and the
+# `elixir` launcher spawns a child process, which the simulation executor does
+# not support.
+#
+# Run `MIX_ENV=prod mix compile` before `codspeed run --mode walltime`; the
+# scripts load the compiled artifacts from `_build/$MIX_ENV/lib/*/ebin`.
+
+options:
+  warmup-time: 1s
+  max-time: 15s
+
+benchmarks:
+  - name: parse plain text messages
+    id: parse_plain_text
+    exec: elixir bench/parse_plain_text.exs
+
+  - name: parse nested multipart messages
+    id: parse_multipart
+    exec: elixir bench/parse_multipart.exs
+
+  - name: parse messages with encoded attachments
+    id: parse_attachments
+    exec: elixir bench/parse_attachments.exs
+
+  - name: parse a large message
+    id: parse_large_message
+    exec: elixir bench/parse_large_message.exs
+
+  - name: parse encoded headers and legacy charsets
+    id: parse_encoded_headers
+    exec: elixir bench/parse_encoded_headers.exs
+
+  - name: parse the conformance corpus
+    id: parse_corpus
+    exec: elixir bench/parse_corpus.exs
+
+  - name: parse address headers
+    id: address_parser
+    exec: elixir bench/address_parser.exs
+
+  - name: parse date headers
+    id: datetime_parser
+    exec: elixir bench/datetime_parser.exs
