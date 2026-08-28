@@ -1,5 +1,7 @@
 # Mailex
 
+[![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://app.codspeed.io/taobojlen/mailex?utm_source=badge)
+
 RFC 5322 email message parser for Elixir, built with [NimbleParsec](https://hexdocs.pm/nimble_parsec/NimbleParsec.html).
 
 ## Installation
@@ -180,6 +182,24 @@ byte_size(attachment.body)
 
 message.headers["received"]
 #=> ["from server1.example.com", "from server2.example.com"]
+```
+
+## Benchmarks
+
+The `bench/` directory contains benchmark scripts covering the parser's hot
+paths: plain-text and multipart messages, attachment decoding, encoded headers
+and legacy charsets, the conformance corpus, and the address and date-time
+parsers. They are wired up to [CodSpeed](https://codspeed.io) through
+`codspeed.yml` and run on every pull request.
+
+To run them locally:
+
+```bash
+MIX_ENV=prod mix compile
+MIX_ENV=prod codspeed run --mode walltime
+
+# or run a single benchmark script directly
+MIX_ENV=prod elixir bench/parse_multipart.exs
 ```
 
 ## License

@@ -25,3 +25,6 @@ mailex-*.tar
 # Claude Code local session/settings directory.
 /.claude/
 
+# Local CodSpeed benchmark results.
+/.codspeed/
+
