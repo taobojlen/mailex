@@ -1078,9 +1078,9 @@ defmodule Mailex.Parser do
 
   defp decode_quoted_printable(body) do
     body
-    # Soft line breaks
-    |> String.replace("=\n", "")
-    |> String.replace("=\r\n", "")
+    # Part extraction and text trimming can leave a terminal soft-break marker
+    # without its newline. Remove it before decoding literal equals signs (=3D).
+    |> String.replace(~r/=(?:\r?\n|\z)/, "")
     |> decode_qp_chars()
   end
 
