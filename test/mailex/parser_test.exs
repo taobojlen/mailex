@@ -555,6 +555,37 @@ defmodule Mailex.ParserTest do
       assert message.body == "Hello World!"
     end
 
+    test "decodes terminal quoted-printable soft breaks without removing encoded equals signs" do
+      for newline <- ["\n", "\r\n"],
+          {body, expected} <- [
+            {"Caf=C3=A9=\n au lait=", "Café au lait"},
+            {"Total=3D", "Total="},
+            {"Total=3D=", "Total="}
+          ] do
+        part =
+          "Content-Type: text/plain; charset=utf-8\n" <>
+            "Content-Transfer-Encoding: quoted-printable\n\n#{body}\n"
+
+        multipart =
+          "Content-Type: multipart/mixed; boundary=outer\n\n" <>
+            "--outer\nContent-Type: multipart/alternative; boundary=inner\n\n" <>
+            "--inner\n#{part}--inner--\n--outer--\n"
+
+        for raw <- [part, multipart] do
+          raw = String.replace(raw, "\n", newline)
+          assert {:ok, message} = Mailex.parse(raw)
+
+          decoded_body =
+            case message.parts do
+              nil -> message.body
+              [%{parts: [text_part]}] -> text_part.body
+            end
+
+          assert decoded_body == expected
+        end
+      end
+    end
+
     test "preserves backslashes in RFC 2047 decoded content" do
       # Base64 encoded "C:\Users\file.txt"
       encoded = "=?UTF-8?B?QzpcVXNlcnNcZmlsZS50eHQ=?="
