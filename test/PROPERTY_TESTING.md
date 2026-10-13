@@ -30,8 +30,11 @@ reduced generated values. Keep those values, not just the seed, because generato
 changes can change the cases a seed produces. The deterministic regressions in
 the existing test files retain the confirmed witnesses.
 
-This orb has Elixir 1.18.4 / OTP 25. The Elixir executable is in
-`/tmp/mailex-elixir/bin`; prepend that directory to `PATH` here. Validation on the
+This orb has the pinned Elixir 1.19.5 / OTP 28 toolchain through mise. Prefix
+commands with `$HOME/.local/bin/mise exec --` to select it explicitly. Elixir
+1.18.4 / OTP 25 is also available with
+`PATH=/tmp/mailex-elixir/bin:/usr/bin:/bin MIX_HOME=$HOME/.mix`. Both toolchains
+pass compilation, formatting, and the coverage command. Validation on the
 repository's full CI version matrix is not included.
 
 ## Targets and oracles
@@ -86,7 +89,7 @@ same failure. Date errors require a caller to invoke a conversion function.
 
 ## Validation and calibration
 
-The integrated suite passes with **19 properties and 750 deterministic tests**.
+The integrated suite reports **19 properties, 752 tests, and zero failures**.
 Full runs use 5,000 cases per property with seeds **314159, 271828, and 8675309**:
 285,000 generated cases in total, excluding earlier discovery runs. Many cases
 contain multiple API calls or a full operation history.
@@ -101,14 +104,23 @@ removed, and the production files match the committed fixes.
 | Always choose related root index 0 | Recursive MIME tree model | 0 | Embedded related message with two parts and root 1 |
 | Skip nonterminal quoted-printable soft breaks | Binary transfer round trip | 7 | Three NUL bytes, wrapping width 1 |
 
-`PROPERTY_RUNS=1000 mix test --cover --seed 577215` runs all assertions
-successfully but exits unsuccessfully on Mix's default 90% coverage threshold:
-coverage is **87.59%**. The unchanged `main` has **83.96%** with the same seed and
-also fails that threshold. No coverage threshold is lowered. Compilation,
-formatting, and non-coverage test commands pass.
+The charset fixture suite checks fixed byte-to-Unicode witnesses for all 33
+supported legacy charset labels, including both Windows aliases and normalized
+uppercase/underscore spellings. Expected characters are independently checked
+against Python's standard codecs. Each label is exercised through public message
+parsing for both RFC 2047 headers and base64 bodies. Undefined bytes in a known
+charset and unknown charsets must preserve the transfer-decoded bytes. Mapping
+`cp1258` to CP1252 deliberately makes the charset test fail with seed 577215;
+that mutation is removed.
+
+`PROPERTY_RUNS=1000 mix test --cover --seed 577215` passes with **94.03%**
+coverage on both toolchains. `mix test --cover --seed 424242 --exclude discovery`
+passes with **90.45%** coverage, so meeting Mix's default 90% threshold does not
+depend on generated cases. No threshold or coverage exclusions are changed.
+Compilation, formatting, and non-coverage test commands pass.
 
 Remaining limits include recursive MIME depth 2, bounded operation histories,
-and incomplete legacy-charset mapping coverage. Some parser error/fallback
+and incomplete byte-table coverage within each legacy charset. Some parser error/fallback
 branches are not reached. The tests respect intentional trailing-text trimming
 and do not assert strict rejection of every malformed email or inconsistent
 weekday. Passing random runs do not establish exhaustive RFC conformance or
