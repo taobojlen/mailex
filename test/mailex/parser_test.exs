@@ -2237,6 +2237,18 @@ defmodule Mailex.ParserTest do
       assert Mailex.Parser.decode_rfc2047(input) == "Hello World"
     end
 
+    test "encoded-word lookalikes preserve their separating whitespace" do
+      for {input, expected} <- [
+            {"plain?= =?plain-a", "plain?= =?plain-a"},
+            {"plain?= =?UTF-8?Q?word?=", "plain?= word"},
+            {"=?UTF-8?Q?word?=\t=?plain-a", "word\t=?plain-a"}
+          ] do
+        assert Mailex.Parser.decode_rfc2047(input) == expected
+        assert {:ok, message} = Mailex.parse("Subject: " <> input <> "\n\n")
+        assert message.headers["subject"] == expected
+      end
+    end
+
     test "decode_rfc2047 handles mixed encoded and plain text" do
       input = "Re: =?UTF-8?Q?caf=C3=A9?= meeting"
       assert Mailex.Parser.decode_rfc2047(input) == "Re: café meeting"
