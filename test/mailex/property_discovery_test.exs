@@ -14,7 +14,7 @@ defmodule Mailex.PropertyDiscoveryTest do
             hour <- integer(0..23),
             minute <- integer(0..59),
             second <- integer(0..59),
-            offset <- one_of([integer(-1439..1439), member_of([1, 60, 330, 840, -720])]),
+            offset <- one_of([integer(-1439..1439), member_of([0, 1, 60, 330, 840, -720])]),
             separator <- member_of([" ", "\t", " (outer(inner)) ", "\r\n "]),
             max_runs: @runs
           ) do
@@ -57,6 +57,31 @@ defmodule Mailex.PropertyDiscoveryTest do
 
       assert AddressParser.parse_address_list(Enum.map_join(parsed, ", ", &address_wire/1)) ==
                {:ok, addresses}
+    end
+  end
+
+  property "single-address APIs enforce cardinality and mailbox/group distinctions" do
+    check all(
+            addresses <- list_of(address(), max_length: 4),
+            max_runs: @runs
+          ) do
+      wire = Enum.map_join(addresses, ", ", &address_wire/1)
+
+      for {parser, type} <- [
+            {&AddressParser.parse_address/1, :any},
+            {&AddressParser.parse_mailbox/1, :mailbox},
+            {&AddressParser.parse_group/1, :group}
+          ] do
+        case addresses do
+          [address] when type == :any or address.type == type ->
+            assert parser.(wire) == {:ok, address}
+
+          _ ->
+            assert {:error, _} = parser.(wire)
+        end
+
+        assert {:error, _} = parser.(wire <> " <")
+      end
     end
   end
 
