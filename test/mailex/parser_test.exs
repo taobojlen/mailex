@@ -1438,6 +1438,24 @@ defmodule Mailex.ParserTest do
       assert message.filename == "Hello World.txt"
     end
 
+    test "extended parameters preserve malformed escapes and decode valid neighboring escapes" do
+      for header <- ["Content-Disposition: attachment", "Content-Type: application/octet-stream"],
+          {value, expected} <- [
+            {"%GG%20name", "%GG name"},
+            {"%0Z%41", "%0ZA"},
+            {"name%", "name%"}
+          ] do
+        assert {:ok, message} = Mailex.parse(header <> "; filename*=UTF-8''" <> value <> "\n\n")
+
+        params =
+          if String.starts_with?(header, "Content-Disposition"),
+            do: message.disposition_params,
+            else: message.content_type.params
+
+        assert params["filename"] == expected
+      end
+    end
+
     test "reassembles encoded continuations (filename*0*=charset'lang'..., filename*1*=...)" do
       # RFC 2231 Section 4.1 example: combined charset/language and continuations
       raw = """

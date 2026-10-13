@@ -628,33 +628,13 @@ defmodule Mailex.Parser do
       [charset, _language, encoded_value] ->
         # For non-UTF-8 charsets, we need to decode percent-encoded bytes first,
         # then convert from the source charset to UTF-8
-        decoded_bytes = percent_decode_to_binary(encoded_value)
+        decoded_bytes = URI.decode(encoded_value)
         convert_charset(decoded_bytes <> suffix, charset)
 
       _ ->
         # If not in charset'lang'value format, just percent-decode as UTF-8
         URI.decode(value) <> suffix
     end
-  end
-
-  # Percent-decode a string to raw binary (without assuming UTF-8)
-  defp percent_decode_to_binary(string) do
-    string
-    |> String.to_charlist()
-    |> decode_percent_chars([])
-    |> Enum.reverse()
-    |> :erlang.list_to_binary()
-  end
-
-  defp decode_percent_chars([], acc), do: acc
-
-  defp decode_percent_chars([?%, h1, h2 | rest], acc) do
-    byte = List.to_integer([h1, h2], 16)
-    decode_percent_chars(rest, [byte | acc])
-  end
-
-  defp decode_percent_chars([char | rest], acc) do
-    decode_percent_chars(rest, [char | acc])
   end
 
   defp unquote_value(value) do
