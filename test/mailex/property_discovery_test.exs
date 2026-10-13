@@ -205,13 +205,25 @@ defmodule Mailex.PropertyDiscoveryTest do
             boundary <- member_of(["a", "a.b+c", "outer", "outer-inner"]),
             padding <- member_of(["", " ", "\t "]),
             eol <- member_of(["\n", "\r\n"]),
-            prefix <- list_of(event(), max_length: 10),
-            suffix <- list_of(event(), max_length: 20),
+            mode <-
+              frequency([
+                {4, constant(:closed)},
+                {1, constant(:early_close)},
+                {2, constant(:eof)}
+              ]),
+            prefix <- list_of(event(:live), max_length: 10),
+            suffix <- list_of(event(if(mode == :eof, do: :live, else: :any)), max_length: 20),
             max_runs: @runs
           ) do
-      # Force near-misses, repeated opens, and content/boundaries after close.
+      # Live prefixes cannot close early and mask the forced interaction.
+      motif = [:open, {:data, "one"}, :near, :open, {:data, "two"}]
+
       events =
-        prefix ++ [:open, {:data, "one"}, :near, :open, {:data, "two"}, :close, :open] ++ suffix
+        case mode do
+          :closed -> prefix ++ motif ++ [:close, :open] ++ suffix
+          :early_close -> prefix ++ [:close] ++ motif ++ suffix
+          :eof -> prefix ++ motif ++ suffix
+        end
 
       raw =
         "Content-Type: multipart/mixed; boundary=" <>
@@ -302,13 +314,20 @@ defmodule Mailex.PropertyDiscoveryTest do
   property "near-valid extended parameters return a result instead of raising" do
     check all(
             bad_escape <- member_of(["%", "%0", "%GG", "%0Z", "%Z0"]),
-            surrounding <- text(["a", "b", "%20"]),
+            segments <-
+              list_of(member_of([{"a", "a"}, {"b", "b"}, {"%20", " "}]), max_length: 12),
             target <- member_of([:disposition, :content_type]),
             max_runs: @runs
           ) do
+      surrounding = Enum.map_join(segments, &elem(&1, 0))
+      expected = Enum.map_join(segments, &elem(&1, 1)) <> bad_escape
       raw = parameter_message(target, ["filename*=UTF-8''" <> surrounding <> bad_escape])
-      result = Mailex.parse(raw)
-      assert match?({:ok, %Mailex.Message{}}, result) or match?({:error, _}, result)
+      assert {:ok, parsed} = Mailex.parse(raw)
+
+      params =
+        if target == :disposition, do: parsed.disposition_params, else: parsed.content_type.params
+
+      assert params["filename"] == expected
     end
   end
 
@@ -332,6 +351,38 @@ defmodule Mailex.PropertyDiscoveryTest do
       if error do
         assert DateTimeParser.to_datetime(parsed) == error
         assert DateTimeParser.to_utc_datetime(parsed) == error
+      end
+    end
+  end
+
+  property "unencoded binary bodies preserve octets through nested containers" do
+    check all(
+            bytes <- binary(max_length: 40),
+            eol <- member_of(["\n", "\r\n"]),
+            max_runs: @runs
+          ) do
+      # Prefix every data line so arbitrary bytes cannot create a delimiter.
+      payload =
+        "x" <>
+          :binary.replace(bytes, "\n", "\nx", [:global]) <> "\r\nx\n" <> <<0, 255>> <> "\r\n "
+
+      leaf =
+        "Content-Type: application/octet-stream" <>
+          eol <>
+          "Content-Transfer-Encoding: binary" <> eol <> eol <> payload
+
+      mixed =
+        "Content-Type: multipart/mixed; boundary=b" <>
+          eol <>
+          eol <>
+          "--b" <> eol <> leaf <> eol <> "--b--"
+
+      embedded = "Content-Type: message/rfc822" <> eol <> eol <> leaf
+
+      for {raw, path} <- [{leaf, []}, {mixed, [0]}, {embedded, [0]}] do
+        assert {:ok, parsed} = Mailex.parse(raw)
+        actual = Enum.reduce(path, parsed, fn i, part -> Enum.at(part.parts, i) end)
+        assert actual.body == payload
       end
     end
   end
@@ -428,12 +479,10 @@ defmodule Mailex.PropertyDiscoveryTest do
     {"quoted-printable", encoded}
   end
 
-  defp event,
-    do:
-      one_of([
-        member_of([:open, :close, :near]),
-        map(member_of(["x", "y", "", "--other", "x--a"]), &{:data, &1})
-      ])
+  defp event(mode) do
+    commands = if mode == :live, do: [:open, :near], else: [:open, :close, :near]
+    one_of([member_of(commands), map(member_of(["x", "y", "", "--other", "x--a"]), &{:data, &1})])
+  end
 
   defp event_wire(:open, boundary, padding, eol),
     do: "--" <> boundary <> padding <> eol <> "Content-Type: text/plain" <> eol
