@@ -1293,6 +1293,23 @@ defmodule Mailex.ParserTest do
   end
 
   describe "RFC 2231 continuation edge cases (item 9.2)" do
+    test "the first continuation charset applies to later encoded segments" do
+      for header <- ["Content-Disposition: attachment", "Content-Type: application/octet-stream"] do
+        raw =
+          header <>
+            "; filename*1*=%FC%DF; filename*0*=ISO-8859-1''Gr; filename*2=\"e.txt\"\n\n"
+
+        assert {:ok, message} = Mailex.parse(raw)
+
+        params =
+          if String.starts_with?(header, "Content-Disposition"),
+            do: message.disposition_params,
+            else: message.content_type.params
+
+        assert params["filename"] == "Grüße.txt"
+      end
+    end
+
     test "only first segment has charset'lang' prefix, subsequent segments are just percent-encoded" do
       # RFC 2231 §4.1: charset and language only in first segment
       raw = """
