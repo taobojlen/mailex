@@ -1202,14 +1202,11 @@ defmodule Mailex.Parser do
   def decode_rfc2047(nil), do: nil
 
   def decode_rfc2047(str) do
-    # First, collapse whitespace between adjacent encoded-words
-    # RFC 2047 §6.2: Any 'linear-white-space' between 'encoded-word's is ignored
-    # Adjacent encoded-words: ?= followed by whitespace followed by =?
-    str = Regex.replace(~r/\?=[ \t\r\n]+\=\?/, str, "?==?")
-
     # Pattern for RFC 2047 encoded words
     # charset can include language tag like US-ASCII*EN (RFC 2231)
-    pattern = ~r/=\?([^?*]+)(?:\*[^?]*)?\?([BbQq])\?([^?]*)\?=/
+    # RFC 2047 §6.2: Ignore whitespace only between complete encoded-words.
+    pattern =
+      ~r/=\?([^?*]+)(?:\*[^?]*)?\?([BbQq])\?([^?]*)\?=(?:[ \t\r\n]+(?==\?[^?*]+(?:\*[^?]*)?\?[BbQq]\?[^?]*\?=))?/
 
     decoded =
       Regex.replace(pattern, str, fn _, charset, encoding, encoded_text ->
