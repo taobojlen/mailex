@@ -430,6 +430,24 @@ defmodule Mailex.ParserTest do
 
       assert embedded != nil
     end
+
+    test "digest defaults parse an embedded message while explicit part types take precedence" do
+      raw =
+        "Content-Type: multipart/digest; boundary=b\n\n" <>
+          "--b\n\nSubject: embedded\nContent-Type: application/octet-stream\n" <>
+          "Content-Transfer-Encoding: base64\n\nAA0K/w==\n" <>
+          "--b\nContent-Type: text/plain\n\nsummary\n--b--"
+
+      assert {:ok, message} = Mailex.parse(raw)
+      assert [implicit, explicit] = message.parts
+      assert implicit.content_type == %{type: "message", subtype: "rfc822", params: %{}}
+      assert implicit.body == nil
+      assert [embedded] = implicit.parts
+      assert embedded.headers["subject"] == "embedded"
+      assert embedded.body == <<0, 13, 10, 255>>
+      assert explicit.content_type.type == "text"
+      assert explicit.body == "summary"
+    end
   end
 
   describe "multipart boundary edge cases" do

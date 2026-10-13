@@ -267,12 +267,15 @@ defmodule Mailex.Parser do
   Returns `{:ok, message}` on success, `{:error, reason}` on failure.
   """
   @spec parse(binary()) :: {:ok, map()} | {:error, term()}
-  def parse(raw) when is_binary(raw) do
+  def parse(raw) when is_binary(raw), do: parse(raw, nil)
+
+  defp parse(raw, default_type) do
     # Normalize line endings
     raw = normalize_line_endings(raw)
 
     case parse_headers(raw) do
       {:ok, [message], rest, _, _, _} ->
+        message = apply_default_type(message, default_type)
         # rest is the body - don't trim here to avoid corrupting binary content
         message = process_body(message, rest)
         # Extract filename from Content-Disposition if present
@@ -868,12 +871,8 @@ defmodule Mailex.Parser do
 
   # Parse a single part
   defp parse_part(part_content, default_type) do
-    case parse(part_content) do
+    case parse(part_content, default_type) do
       {:ok, parsed} ->
-        # Apply default type if no Content-Type was specified
-        parsed = apply_default_type(parsed, default_type)
-        # Extract filename from Content-Disposition if present
-        parsed = extract_filename(parsed)
         parsed
 
       {:error, _} ->
