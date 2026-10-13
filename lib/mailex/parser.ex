@@ -270,8 +270,7 @@ defmodule Mailex.Parser do
   def parse(raw) when is_binary(raw), do: parse(raw, nil)
 
   defp parse(raw, default_type) do
-    # Normalize line endings
-    raw = normalize_line_endings(raw)
+    raw = skip_mbox_line(raw)
 
     case parse_headers(raw) do
       {:ok, [message], rest, _, _, _} ->
@@ -296,13 +295,6 @@ defmodule Mailex.Parser do
       {:ok, message} -> message
       {:error, reason} -> raise "Parse error: #{inspect(reason)}"
     end
-  end
-
-  # Normalize CRLF to LF and skip mbox "From " lines
-  defp normalize_line_endings(raw) do
-    raw
-    |> String.replace("\r\n", "\n")
-    |> skip_mbox_line()
   end
 
   # Skip mbox format "From " line at the beginning
@@ -676,8 +668,12 @@ defmodule Mailex.Parser do
       true ->
         charset = message.content_type.params["charset"]
         is_text = message.content_type.type == "text"
-        # Only trim trailing whitespace for text content to avoid corrupting binary data
-        body = if is_text, do: String.trim_trailing(body), else: body
+        # Normalize and trim only text content, preserving binary octets.
+        body =
+          if is_text,
+            do: body |> String.replace("\r\n", "\n") |> String.trim_trailing(),
+            else: body
+
         decoded_body = decode_body(body, message.encoding, charset, is_text)
         %{message | body: decoded_body}
     end
@@ -757,10 +753,9 @@ defmodule Mailex.Parser do
     parse_multipart_lines(lines, delimiter, close_delimiter, :preamble, [], [])
   end
 
-  # Split body into lines, preserving each line's content without terminators
+  # Preserve line terminators so binary parts retain their original octets.
   defp split_lines_for_multipart(body) do
-    # Split on CRLF or LF, keeping empty lines
-    String.split(body, ~r/\r?\n/, include_captures: false)
+    String.split(body, ~r/(?<=\n)/)
   end
 
   # Recursive state machine for parsing multipart lines
@@ -769,13 +764,15 @@ defmodule Mailex.Parser do
     # End of input - finalize any current part
     case current_lines do
       [] -> Enum.reverse(parts)
-      _ -> Enum.reverse([finalize_part(current_lines) | parts])
+      _ -> Enum.reverse([finalize_part(current_lines, false) | parts])
     end
   end
 
   defp parse_multipart_lines([line | rest], delimiter, close, state, current_lines, parts) do
+    boundary_line = Regex.replace(~r/\r?\n\z/, line, "")
+
     cond do
-      is_close_boundary_line?(line, close) ->
+      is_close_boundary_line?(boundary_line, close) ->
         # Close delimiter - finalize current part and stop
         case state do
           :preamble ->
@@ -785,7 +782,7 @@ defmodule Mailex.Parser do
             Enum.reverse([finalize_part(current_lines) | parts])
         end
 
-      is_boundary_line?(line, delimiter) ->
+      is_boundary_line?(boundary_line, delimiter) ->
         # Regular delimiter - start new part
         case state do
           :preamble ->
@@ -842,11 +839,10 @@ defmodule Mailex.Parser do
   defp lwsp_only?(""), do: true
   defp lwsp_only?(str), do: Regex.match?(~r/^[ \t]*$/, str)
 
-  # Join accumulated lines back into part body content
-  defp finalize_part(lines) do
-    lines
-    |> Enum.reverse()
-    |> Enum.join("\r\n")
+  # The newline preceding a delimiter belongs to that delimiter (RFC 2046 §5.1.1).
+  defp finalize_part(lines, before_boundary? \\ true) do
+    content = lines |> Enum.reverse() |> IO.iodata_to_binary()
+    if before_boundary?, do: Regex.replace(~r/\r?\n\z/, content, ""), else: content
   end
 
   # Parse a single part
