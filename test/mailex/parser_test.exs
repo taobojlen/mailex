@@ -586,6 +586,28 @@ defmodule Mailex.ParserTest do
       end
     end
 
+    test "unencoded binary bodies preserve line endings in containers and at EOF" do
+      payload = <<0, 13, 10, 255, 10, 32, 13, 10>>
+
+      for eol <- ["\n", "\r\n"] do
+        leaf = "Content-Type: application/octet-stream" <> eol <> eol <> payload
+
+        multipart =
+          "Content-Type: multipart/mixed; boundary=b" <> eol <> eol <> "--b" <> eol <> leaf
+
+        for {raw, nested?} <- [
+              {leaf, false},
+              {"Content-Type: message/rfc822" <> eol <> eol <> leaf, true},
+              {multipart <> eol <> "--b--", true},
+              {multipart, true}
+            ] do
+          assert {:ok, message} = Mailex.parse(raw)
+          body = if nested?, do: hd(message.parts).body, else: message.body
+          assert body == payload
+        end
+      end
+    end
+
     test "preserves backslashes in RFC 2047 decoded content" do
       # Base64 encoded "C:\Users\file.txt"
       encoded = "=?UTF-8?B?QzpcVXNlcnNcZmlsZS50eHQ=?="
