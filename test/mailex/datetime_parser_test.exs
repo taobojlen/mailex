@@ -271,5 +271,16 @@ defmodule Mailex.DateTimeParserTest do
         assert DateTimeParser.to_utc_datetime(parsed) == {:ok, expected}
       end
     end
+
+    test "conversion returns errors for invalid dates and unrepresentable leap seconds" do
+      for {input, reason} <- [
+            {"31 Feb 2024 12:00:00 +0100", :invalid_date},
+            {"30 Jun 2024 23:59:60 +0000", :invalid_time}
+          ] do
+        assert {:ok, parsed} = DateTimeParser.parse(input)
+        assert DateTimeParser.to_datetime(parsed) == {:error, reason}
+        assert DateTimeParser.to_utc_datetime(parsed) == {:error, reason}
+      end
+    end
   end
 end
