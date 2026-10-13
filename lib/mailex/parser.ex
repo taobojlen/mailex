@@ -587,8 +587,8 @@ defmodule Mailex.Parser do
     # Reassemble each group
     reassembled =
       Enum.map(grouped, fn {base_name, parts} ->
-        # Sort by numeric index and concatenate values
-        sorted_values =
+        # Charset and language belong only to the first segment.
+        [{_, first, first_encoded?} | rest] =
           parts
           |> Enum.map(fn {key, value} ->
             # Extract index from key (e.g., "0" from "filename*0")
@@ -598,15 +598,18 @@ defmodule Mailex.Parser do
             {index, value, is_encoded}
           end)
           |> Enum.sort_by(fn {index, _, _} -> index end)
-          |> Enum.map(fn {_, value, is_encoded} ->
-            if is_encoded do
-              decode_rfc2231_extended_value(value)
-            else
-              value
-            end
+
+        suffix =
+          Enum.map_join(rest, "", fn {_, value, is_encoded} ->
+            if is_encoded, do: URI.decode(value), else: value
           end)
 
-        {base_name, Enum.join(sorted_values, "")}
+        value =
+          if first_encoded?,
+            do: decode_rfc2231_extended_value(first, suffix),
+            else: first <> suffix
+
+        {base_name, value}
       end)
       |> Map.new()
 
@@ -617,17 +620,17 @@ defmodule Mailex.Parser do
   end
 
   # Decode RFC 2231 extended value: charset'language'percent-encoded-value
-  defp decode_rfc2231_extended_value(value) do
+  defp decode_rfc2231_extended_value(value, suffix \\ "") do
     case String.split(value, "'", parts: 3) do
       [charset, _language, encoded_value] ->
         # For non-UTF-8 charsets, we need to decode percent-encoded bytes first,
         # then convert from the source charset to UTF-8
         decoded_bytes = percent_decode_to_binary(encoded_value)
-        convert_charset(decoded_bytes, charset)
+        convert_charset(decoded_bytes <> suffix, charset)
 
       _ ->
         # If not in charset'lang'value format, just percent-decode as UTF-8
-        URI.decode(value)
+        URI.decode(value) <> suffix
     end
   end
 
