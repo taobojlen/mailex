@@ -153,9 +153,7 @@ defmodule Mailex.AddressParser do
       dot_atom_text |> unwrap_and_tag(:dot_domain)
     ])
 
-  # Note: addr_spec is defined for reference but the defparsec was removed
-  # to improve compile time. We parse via address_list and extract results.
-  _addr_spec =
+  addr_spec =
     parsec(:optional_cfws)
     |> concat(local_part)
     |> ignore(parsec(:optional_cfws))
@@ -263,11 +261,10 @@ defmodule Mailex.AddressParser do
   # Parser definitions
   # ===========================================================================
 
-  # Only generate one parser entry point to reduce compile time.
-  # NimbleParsec generates substantial code for each defparsec, so minimizing
-  # entry points significantly improves compilation speed.
-  #
-  # The other parse_* functions reuse this parser and validate results.
+  # Preserve local-part and domain boundaries before mailbox formatting.
+  defparsec(:do_parse_addr_spec, addr_spec |> eos())
+
+  # Mailbox, group, and address APIs reuse the address-list parser.
   defparsec(:do_parse_address_list, address_list |> eos())
 
   # ===========================================================================
@@ -290,19 +287,9 @@ defmodule Mailex.AddressParser do
   """
   @spec parse_addr_spec(binary()) :: {:ok, map()} | {:error, term()}
   def parse_addr_spec(input) when is_binary(input) do
-    # Parse as address list and extract addr-spec components
-    case parse_address_list(input) do
-      {:ok, [%{type: :mailbox, address: addr}]} ->
-        case String.split(addr, "@", parts: 2) do
-          [local, domain] -> {:ok, %{local_part: local, domain: domain}}
-          _ -> {:error, "invalid addr-spec"}
-        end
-
-      {:ok, _} ->
-        {:error, "expected single addr-spec"}
-
-      error ->
-        error
+    case do_parse_addr_spec(input) do
+      {:ok, [result], "", _, _, _} -> {:ok, result}
+      {:error, reason, _, _, _, _} -> {:error, reason}
     end
   end
 
