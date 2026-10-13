@@ -36,9 +36,9 @@ defmodule Mailex.AddressParser do
 
   quoted_pair =
     ignore(string("\\"))
-    |> ascii_char([0x00..0x7F])
+    |> utf8_char([0x00..0x7F, 0x80..0x10FFFF])
 
-  ctext = ascii_char([0x21..0x27, 0x2A..0x5B, 0x5D..0x7E])
+  ctext = utf8_char([0x21..0x27, 0x2A..0x5B, 0x5D..0x7E, 0x80..0x10FFFF])
 
   defcombinatorp(
     :comment_content,
@@ -114,7 +114,7 @@ defmodule Mailex.AddressParser do
 
   dot_atom_text = parsec(:dot_atom_text)
 
-  qtext = ascii_char([0x21, 0x23..0x5B, 0x5D..0x7E])
+  qtext = utf8_char([0x21, 0x23..0x5B, 0x5D..0x7E, 0x80..0x10FFFF])
 
   qcontent = choice([qtext, quoted_pair])
 
@@ -122,7 +122,7 @@ defmodule Mailex.AddressParser do
     ignore(ascii_char([?"]))
     |> repeat(choice([qcontent, wsp |> replace(?\s)]))
     |> ignore(ascii_char([?"]))
-    |> reduce({:erlang, :list_to_binary, []})
+    |> reduce({__MODULE__, :codepoints_to_string, []})
 
   _quoted_string =
     parsec(:optional_cfws)
@@ -139,13 +139,13 @@ defmodule Mailex.AddressParser do
       dot_atom_text |> unwrap_and_tag(:dot_local)
     ])
 
-  dtext = ascii_char([0x21..0x5A, 0x5E..0x7E])
+  dtext = utf8_char([0x21..0x5A, 0x5E..0x7E, 0x80..0x10FFFF])
 
   domain_literal_inner =
     string("[")
     |> repeat(choice([dtext, wsp]))
     |> string("]")
-    |> reduce({:erlang, :list_to_binary, []})
+    |> reduce({__MODULE__, :codepoints_to_string, []})
 
   domain =
     choice([

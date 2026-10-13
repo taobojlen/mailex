@@ -309,5 +309,15 @@ defmodule Mailex.AddressParserTest do
       assert result.type == :group
       assert result.name == "チーム"
     end
+
+    test "UTF-8 is accepted in quoted strings, comments, and domain literals" do
+      for input <- [~s("é"@[例え]), "(界(🙂)) é@[例え]", ~s("\\é"@[例え])] do
+        assert AddressParser.parse_addr_spec(input) ==
+                 {:ok, %{local_part: "é", domain: "[例え]"}}
+      end
+
+      assert AddressParser.parse_mailbox(~s("界 \\"🙂\\"" <"é"@[例え]>)) ==
+               {:ok, %{type: :mailbox, name: "界 \"🙂\"", address: "é@[例え]"}}
+    end
   end
 end
