@@ -300,7 +300,7 @@ defmodule Mailex.DateTimeParser do
     offset_minutes = dt.zone_offset
     total_minutes = dt.hour * 60 + dt.minute - offset_minutes
 
-    days_delta = div(total_minutes, 1440)
+    days_delta = Integer.floor_div(total_minutes, 1440)
     remaining_minutes = rem(total_minutes, 1440)
 
     {adjusted_hour, remaining_minutes} =
