@@ -48,7 +48,7 @@ defmodule Mailex.Parser do
     ignore(string("("))
     |> repeat(parsec(:comment_content))
     |> ignore(string(")"))
-    |> reduce({:erlang, :list_to_binary, []})
+    |> reduce({IO, :chardata_to_string, []})
 
   defparsec(:parse_comment, comment)
 
@@ -322,7 +322,7 @@ defmodule Mailex.Parser do
 
   @doc false
   def wrap_nested_comment(chars) do
-    "(" <> :erlang.list_to_binary(chars) <> ")"
+    "(" <> IO.chardata_to_string(chars) <> ")"
   end
 
   @doc """
