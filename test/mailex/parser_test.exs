@@ -1723,6 +1723,15 @@ defmodule Mailex.ParserTest do
                Mailex.Parser.parse_comment("(outer (inner) text)")
     end
 
+    test "Unicode comments preserve UTF-8 in nested comments and message IDs" do
+      assert {:ok, ["é (界) 🙂"], "", _, _, _} = Mailex.Parser.parse_comment("(é (界) 🙂)")
+
+      assert {:ok, message} =
+               Mailex.parse("Message-ID: (é (界) 🙂) <a@example.org>\n\nbody")
+
+      assert message.message_id == "a@example.org"
+    end
+
     test "parse_comment handles escaped characters" do
       assert {:ok, [content], "", _, _, _} = Mailex.Parser.parse_comment("(escaped \\( paren)")
       assert content == "escaped ( paren"
