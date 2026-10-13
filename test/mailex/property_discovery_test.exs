@@ -237,8 +237,110 @@ defmodule Mailex.PropertyDiscoveryTest do
     end
   end
 
+  property "UTF-8 quoted addresses and names preserve codepoints and escapes" do
+    check all(
+            local <- text(["é", "界", "🙂", "a", "@", "\"", "\\"], 1),
+            name <- text(["é", "界", "🙂", "a", "\"", "\\"], 1),
+            max_runs: @runs
+          ) do
+      addr = quote_string(local) <> "@example.org"
+
+      assert AddressParser.parse_addr_spec(addr) ==
+               {:ok, %{local_part: local, domain: "example.org"}}
+
+      assert AddressParser.parse_mailbox(quote_string(name) <> " <" <> addr <> ">") ==
+               {:ok, %{type: :mailbox, name: name, address: local <> "@example.org"}}
+    end
+  end
+
+  property "nested Unicode comments reconstruct and strip according to their syntax tree" do
+    check all(
+            comment <- comment(3),
+            quoted <- text(["a", "é", "界", "(", ")", "\"", "\\"]),
+            max_runs: @runs
+          ) do
+      wire = comment_wire(comment)
+      assert {:ok, [decoded], "", _, _, _} = Parser.parse_comment(wire)
+      assert decoded == comment_model(comment)
+      literal = quote_string(quoted)
+      assert Parser.strip_comments("a" <> wire <> literal <> wire <> "b") == "a" <> literal <> "b"
+      # Comments also flow through the public message-ID extraction path.
+      assert {:ok, parsed} = Mailex.parse("Message-ID: " <> wire <> " <a@example.org>\n\n")
+      assert parsed.message_id == "a@example.org"
+    end
+  end
+
+  property "mixed continuation representations preserve raw percent signs and charset" do
+    check all(
+            prefix <- text(["a", "é", "ø", "ß"], 1),
+            suffix <- text(["a", "'", "%", "\"", "\\"]),
+            mode <- member_of([:all_encoded, :mixed, :unencoded]),
+            reverse? <- boolean(),
+            max_runs: @runs
+          ) do
+      latin1 = for <<cp::utf8 <- prefix>>, into: "", do: <<cp>>
+
+      params =
+        case mode do
+          :all_encoded ->
+            ["filename*0*=ISO-8859-1''" <> percent(latin1), "filename*1*=" <> percent(suffix)]
+
+          :mixed ->
+            ["filename*0*=ISO-8859-1''" <> percent(latin1), "filename*1=" <> quote_string(suffix)]
+
+          :unencoded ->
+            ["filename*0=" <> quote_string("plain%20"), "filename*1*=" <> percent(suffix)]
+        end
+
+      params = if reverse?, do: Enum.reverse(params), else: params
+      assert {:ok, parsed} = Mailex.parse(parameter_message(:disposition, params))
+      expected = if mode == :unencoded, do: "plain%20" <> suffix, else: prefix <> suffix
+      assert parsed.filename == expected
+    end
+  end
+
+  property "near-valid extended parameters return a result instead of raising" do
+    check all(
+            bad_escape <- member_of(["%", "%0", "%GG", "%0Z", "%Z0"]),
+            surrounding <- text(["a", "b", "%20"]),
+            target <- member_of([:disposition, :content_type]),
+            max_runs: @runs
+          ) do
+      raw = parameter_message(target, ["filename*=UTF-8''" <> surrounding <> bad_escape])
+      result = Mailex.parse(raw)
+      assert match?({:ok, %Mailex.Message{}}, result) or match?({:error, _}, result)
+    end
+  end
+
+  property "date conversions report unrepresentable dates and leap seconds as errors" do
+    check all(
+            month <- integer(1..12),
+            day <- integer(1..31),
+            second <- one_of([integer(0..59), constant(60)]),
+            max_runs: @runs
+          ) do
+      raw = "#{day} #{Enum.at(@months, month - 1)} 2024 12:00:#{pad(second)} +0100"
+      assert {:ok, parsed} = DateTimeParser.parse(raw)
+
+      error =
+        case {Date.new(2024, month, day), Time.new(12, 0, second)} do
+          {{:error, reason}, _} -> {:error, reason}
+          {_, {:error, reason}} -> {:error, reason}
+          _ -> nil
+        end
+
+      if error do
+        assert DateTimeParser.to_datetime(parsed) == error
+        assert DateTimeParser.to_utc_datetime(parsed) == error
+      end
+    end
+  end
+
   defp text(alphabet, min_length \\ 0, max_length \\ 12) do
-    map(list_of(member_of(alphabet), min_length: min_length, max_length: max_length), &Enum.join/1)
+    map(
+      list_of(member_of(alphabet), min_length: min_length, max_length: max_length),
+      &Enum.join/1
+    )
   end
 
   defp calendar_date do
@@ -443,4 +545,25 @@ defmodule Mailex.PropertyDiscoveryTest do
       do: {type.type, type.subtype, content, message.related_root_index},
       else: {type.type, type.subtype, content}
   end
+
+  defp comment(0),
+    do: list_of(member_of(["a", "é", "界", "🙂", "\\(", "\\)", "\\\\"]), max_length: 6)
+
+  defp comment(depth),
+    do:
+      list_of(one_of([member_of(["a", "é", "界", "🙂", "\\(", "\\)", "\\\\"]), comment(depth - 1)]),
+        max_length: 4
+      )
+
+  defp comment_wire(nodes), do: "(" <> Enum.map_join(nodes, &comment_node_wire/1) <> ")"
+  defp comment_node_wire(node) when is_list(node), do: comment_wire(node)
+  defp comment_node_wire(node), do: node
+
+  defp comment_model(nodes),
+    do:
+      Enum.map_join(nodes, fn
+        node when is_list(node) -> "(" <> comment_model(node) <> ")"
+        "\\" <> char -> char
+        node -> node
+      end)
 end
