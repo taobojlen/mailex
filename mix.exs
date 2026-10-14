@@ -36,7 +36,8 @@ defmodule Mailex.MixProject do
       {:nimble_parsec, "~> 1.4"},
       {:codepagex, "~> 0.1.13"},
       {:ex_doc, "~> 0.35", only: :dev, runtime: false},
-      {:jason, "~> 1.4", only: :test}
+      {:jason, "~> 1.4", only: :test},
+      {:stream_data, "~> 1.2", only: :test}
     ]
   end
 

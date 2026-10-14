@@ -259,24 +259,16 @@ defmodule Mailex.DateTimeParser do
   def to_datetime(%__MODULE__{} = dt) do
     offset_seconds = dt.zone_offset * 60
 
-    case DateTime.new(
-           Date.new!(dt.year, dt.month, dt.day),
-           Time.new!(dt.hour, dt.minute, dt.second || 0),
-           "Etc/UTC",
-           offset_seconds
-         ) do
-      {:ok, datetime} ->
-        datetime = %{
-          datetime
-          | utc_offset: offset_seconds,
-            std_offset: 0,
-            zone_abbr: zone_abbr(dt.zone_offset)
-        }
-
-        {:ok, datetime}
-
-      error ->
-        error
+    with {:ok, date} <- Date.new(dt.year, dt.month, dt.day),
+         {:ok, time} <- Time.new(dt.hour, dt.minute, dt.second || 0),
+         {:ok, datetime} <- DateTime.new(date, time) do
+      {:ok,
+       %{
+         datetime
+         | utc_offset: offset_seconds,
+           std_offset: 0,
+           zone_abbr: zone_abbr(dt.zone_offset)
+       }}
     end
   end
 
@@ -300,7 +292,7 @@ defmodule Mailex.DateTimeParser do
     offset_minutes = dt.zone_offset
     total_minutes = dt.hour * 60 + dt.minute - offset_minutes
 
-    days_delta = div(total_minutes, 1440)
+    days_delta = Integer.floor_div(total_minutes, 1440)
     remaining_minutes = rem(total_minutes, 1440)
 
     {adjusted_hour, remaining_minutes} =
@@ -310,14 +302,10 @@ defmodule Mailex.DateTimeParser do
         {div(remaining_minutes, 60), rem(remaining_minutes, 60)}
       end
 
-    base_date = Date.new!(dt.year, dt.month, dt.day)
-    adjusted_date = Date.add(base_date, days_delta)
-
-    DateTime.new(
-      adjusted_date,
-      Time.new!(adjusted_hour, remaining_minutes, dt.second || 0),
-      "Etc/UTC"
-    )
+    with {:ok, base_date} <- Date.new(dt.year, dt.month, dt.day),
+         {:ok, time} <- Time.new(adjusted_hour, remaining_minutes, dt.second || 0) do
+      DateTime.new(Date.add(base_date, days_delta), time)
+    end
   end
 
   # ===========================================================================

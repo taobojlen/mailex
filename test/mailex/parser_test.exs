@@ -430,6 +430,24 @@ defmodule Mailex.ParserTest do
 
       assert embedded != nil
     end
+
+    test "digest defaults parse an embedded message while explicit part types take precedence" do
+      raw =
+        "Content-Type: multipart/digest; boundary=b\n\n" <>
+          "--b\n\nSubject: embedded\nContent-Type: application/octet-stream\n" <>
+          "Content-Transfer-Encoding: base64\n\nAA0K/w==\n" <>
+          "--b\nContent-Type: text/plain\n\nsummary\n--b--"
+
+      assert {:ok, message} = Mailex.parse(raw)
+      assert [implicit, explicit] = message.parts
+      assert implicit.content_type == %{type: "message", subtype: "rfc822", params: %{}}
+      assert implicit.body == nil
+      assert [embedded] = implicit.parts
+      assert embedded.headers["subject"] == "embedded"
+      assert embedded.body == <<0, 13, 10, 255>>
+      assert explicit.content_type.type == "text"
+      assert explicit.body == "summary"
+    end
   end
 
   describe "multipart boundary edge cases" do
@@ -582,6 +600,28 @@ defmodule Mailex.ParserTest do
             end
 
           assert decoded_body == expected
+        end
+      end
+    end
+
+    test "unencoded binary bodies preserve line endings in containers and at EOF" do
+      payload = <<0, 13, 10, 255, 10, 32, 13, 10>>
+
+      for eol <- ["\n", "\r\n"] do
+        leaf = "Content-Type: application/octet-stream" <> eol <> eol <> payload
+
+        multipart =
+          "Content-Type: multipart/mixed; boundary=b" <> eol <> eol <> "--b" <> eol <> leaf
+
+        for {raw, nested?} <- [
+              {leaf, false},
+              {"Content-Type: message/rfc822" <> eol <> eol <> leaf, true},
+              {multipart <> eol <> "--b--", true},
+              {multipart, true}
+            ] do
+          assert {:ok, message} = Mailex.parse(raw)
+          body = if nested?, do: hd(message.parts).body, else: message.body
+          assert body == payload
         end
       end
     end
@@ -1293,6 +1333,23 @@ defmodule Mailex.ParserTest do
   end
 
   describe "RFC 2231 continuation edge cases (item 9.2)" do
+    test "the first continuation charset applies to later encoded segments" do
+      for header <- ["Content-Disposition: attachment", "Content-Type: application/octet-stream"] do
+        raw =
+          header <>
+            "; filename*1*=%FC%DF; filename*0*=ISO-8859-1''Gr; filename*2=\"e.txt\"\n\n"
+
+        assert {:ok, message} = Mailex.parse(raw)
+
+        params =
+          if String.starts_with?(header, "Content-Disposition"),
+            do: message.disposition_params,
+            else: message.content_type.params
+
+        assert params["filename"] == "Grüße.txt"
+      end
+    end
+
     test "only first segment has charset'lang' prefix, subsequent segments are just percent-encoded" do
       # RFC 2231 §4.1: charset and language only in first segment
       raw = """
@@ -1401,6 +1458,24 @@ defmodule Mailex.ParserTest do
 
       assert {:ok, message} = Mailex.Parser.parse(raw)
       assert message.filename == "Hello World.txt"
+    end
+
+    test "extended parameters preserve malformed escapes and decode valid neighboring escapes" do
+      for header <- ["Content-Disposition: attachment", "Content-Type: application/octet-stream"],
+          {value, expected} <- [
+            {"%GG%20name", "%GG name"},
+            {"%0Z%41", "%0ZA"},
+            {"name%", "name%"}
+          ] do
+        assert {:ok, message} = Mailex.parse(header <> "; filename*=UTF-8''" <> value <> "\n\n")
+
+        params =
+          if String.starts_with?(header, "Content-Disposition"),
+            do: message.disposition_params,
+            else: message.content_type.params
+
+        assert params["filename"] == expected
+      end
     end
 
     test "reassembles encoded continuations (filename*0*=charset'lang'..., filename*1*=...)" do
@@ -1686,6 +1761,15 @@ defmodule Mailex.ParserTest do
     test "parse_comment parses nested comment" do
       assert {:ok, ["outer (inner) text"], "", _, _, _} =
                Mailex.Parser.parse_comment("(outer (inner) text)")
+    end
+
+    test "Unicode comments preserve UTF-8 in nested comments and message IDs" do
+      assert {:ok, ["é (界) 🙂"], "", _, _, _} = Mailex.Parser.parse_comment("(é (界) 🙂)")
+
+      assert {:ok, message} =
+               Mailex.parse("Message-ID: (é (界) 🙂) <a@example.org>\n\nbody")
+
+      assert message.message_id == "a@example.org"
     end
 
     test "parse_comment handles escaped characters" do
@@ -2235,6 +2319,18 @@ defmodule Mailex.ParserTest do
       # Whitespace before or after non-encoded text should be preserved
       input = "Hello =?UTF-8?Q?World?="
       assert Mailex.Parser.decode_rfc2047(input) == "Hello World"
+    end
+
+    test "encoded-word lookalikes preserve their separating whitespace" do
+      for {input, expected} <- [
+            {"plain?= =?plain-a", "plain?= =?plain-a"},
+            {"plain?= =?UTF-8?Q?word?=", "plain?= word"},
+            {"=?UTF-8?Q?word?=\t=?plain-a", "word\t=?plain-a"}
+          ] do
+        assert Mailex.Parser.decode_rfc2047(input) == expected
+        assert {:ok, message} = Mailex.parse("Subject: " <> input <> "\n\n")
+        assert message.headers["subject"] == expected
+      end
     end
 
     test "decode_rfc2047 handles mixed encoded and plain text" do

@@ -48,7 +48,7 @@ defmodule Mailex.Parser do
     ignore(string("("))
     |> repeat(parsec(:comment_content))
     |> ignore(string(")"))
-    |> reduce({:erlang, :list_to_binary, []})
+    |> reduce({IO, :chardata_to_string, []})
 
   defparsec(:parse_comment, comment)
 
@@ -267,12 +267,14 @@ defmodule Mailex.Parser do
   Returns `{:ok, message}` on success, `{:error, reason}` on failure.
   """
   @spec parse(binary()) :: {:ok, map()} | {:error, term()}
-  def parse(raw) when is_binary(raw) do
-    # Normalize line endings
-    raw = normalize_line_endings(raw)
+  def parse(raw) when is_binary(raw), do: parse(raw, nil)
+
+  defp parse(raw, default_type) do
+    raw = skip_mbox_line(raw)
 
     case parse_headers(raw) do
       {:ok, [message], rest, _, _, _} ->
+        message = apply_default_type(message, default_type)
         # rest is the body - don't trim here to avoid corrupting binary content
         message = process_body(message, rest)
         # Extract filename from Content-Disposition if present
@@ -295,13 +297,6 @@ defmodule Mailex.Parser do
     end
   end
 
-  # Normalize CRLF to LF and skip mbox "From " lines
-  defp normalize_line_endings(raw) do
-    raw
-    |> String.replace("\r\n", "\n")
-    |> skip_mbox_line()
-  end
-
   # Skip mbox format "From " line at the beginning
   defp skip_mbox_line(<<"From ", rest::binary>>) do
     case String.split(rest, "\n", parts: 2) do
@@ -322,7 +317,7 @@ defmodule Mailex.Parser do
 
   @doc false
   def wrap_nested_comment(chars) do
-    "(" <> :erlang.list_to_binary(chars) <> ")"
+    "(" <> IO.chardata_to_string(chars) <> ")"
   end
 
   @doc """
@@ -587,8 +582,8 @@ defmodule Mailex.Parser do
     # Reassemble each group
     reassembled =
       Enum.map(grouped, fn {base_name, parts} ->
-        # Sort by numeric index and concatenate values
-        sorted_values =
+        # Charset and language belong only to the first segment.
+        [{_, first, first_encoded?} | rest] =
           parts
           |> Enum.map(fn {key, value} ->
             # Extract index from key (e.g., "0" from "filename*0")
@@ -598,15 +593,18 @@ defmodule Mailex.Parser do
             {index, value, is_encoded}
           end)
           |> Enum.sort_by(fn {index, _, _} -> index end)
-          |> Enum.map(fn {_, value, is_encoded} ->
-            if is_encoded do
-              decode_rfc2231_extended_value(value)
-            else
-              value
-            end
+
+        suffix =
+          Enum.map_join(rest, "", fn {_, value, is_encoded} ->
+            if is_encoded, do: URI.decode(value), else: value
           end)
 
-        {base_name, Enum.join(sorted_values, "")}
+        value =
+          if first_encoded?,
+            do: decode_rfc2231_extended_value(first, suffix),
+            else: first <> suffix
+
+        {base_name, value}
       end)
       |> Map.new()
 
@@ -617,38 +615,18 @@ defmodule Mailex.Parser do
   end
 
   # Decode RFC 2231 extended value: charset'language'percent-encoded-value
-  defp decode_rfc2231_extended_value(value) do
+  defp decode_rfc2231_extended_value(value, suffix \\ "") do
     case String.split(value, "'", parts: 3) do
       [charset, _language, encoded_value] ->
         # For non-UTF-8 charsets, we need to decode percent-encoded bytes first,
         # then convert from the source charset to UTF-8
-        decoded_bytes = percent_decode_to_binary(encoded_value)
-        convert_charset(decoded_bytes, charset)
+        decoded_bytes = URI.decode(encoded_value)
+        convert_charset(decoded_bytes <> suffix, charset)
 
       _ ->
         # If not in charset'lang'value format, just percent-decode as UTF-8
-        URI.decode(value)
+        URI.decode(value) <> suffix
     end
-  end
-
-  # Percent-decode a string to raw binary (without assuming UTF-8)
-  defp percent_decode_to_binary(string) do
-    string
-    |> String.to_charlist()
-    |> decode_percent_chars([])
-    |> Enum.reverse()
-    |> :erlang.list_to_binary()
-  end
-
-  defp decode_percent_chars([], acc), do: acc
-
-  defp decode_percent_chars([?%, h1, h2 | rest], acc) do
-    byte = List.to_integer([h1, h2], 16)
-    decode_percent_chars(rest, [byte | acc])
-  end
-
-  defp decode_percent_chars([char | rest], acc) do
-    decode_percent_chars(rest, [char | acc])
   end
 
   defp unquote_value(value) do
@@ -690,8 +668,12 @@ defmodule Mailex.Parser do
       true ->
         charset = message.content_type.params["charset"]
         is_text = message.content_type.type == "text"
-        # Only trim trailing whitespace for text content to avoid corrupting binary data
-        body = if is_text, do: String.trim_trailing(body), else: body
+        # Normalize and trim only text content, preserving binary octets.
+        body =
+          if is_text,
+            do: body |> String.replace("\r\n", "\n") |> String.trim_trailing(),
+            else: body
+
         decoded_body = decode_body(body, message.encoding, charset, is_text)
         %{message | body: decoded_body}
     end
@@ -771,10 +753,15 @@ defmodule Mailex.Parser do
     parse_multipart_lines(lines, delimiter, close_delimiter, :preamble, [], [])
   end
 
-  # Split body into lines, preserving each line's content without terminators
+  # Preserve line terminators so binary parts retain their original octets.
   defp split_lines_for_multipart(body) do
-    # Split on CRLF or LF, keeping empty lines
-    String.split(body, ~r/\r?\n/, include_captures: false)
+    {lines, offset} =
+      Enum.map_reduce(:binary.matches(body, "\n"), 0, fn {position, 1}, offset ->
+        next_offset = position + 1
+        {binary_part(body, offset, next_offset - offset), next_offset}
+      end)
+
+    lines ++ [binary_part(body, offset, byte_size(body) - offset)]
   end
 
   # Recursive state machine for parsing multipart lines
@@ -783,13 +770,15 @@ defmodule Mailex.Parser do
     # End of input - finalize any current part
     case current_lines do
       [] -> Enum.reverse(parts)
-      _ -> Enum.reverse([finalize_part(current_lines) | parts])
+      _ -> Enum.reverse([finalize_part(current_lines, false) | parts])
     end
   end
 
   defp parse_multipart_lines([line | rest], delimiter, close, state, current_lines, parts) do
+    boundary_line = strip_line_ending(line)
+
     cond do
-      is_close_boundary_line?(line, close) ->
+      is_close_boundary_line?(boundary_line, close) ->
         # Close delimiter - finalize current part and stop
         case state do
           :preamble ->
@@ -799,7 +788,7 @@ defmodule Mailex.Parser do
             Enum.reverse([finalize_part(current_lines) | parts])
         end
 
-      is_boundary_line?(line, delimiter) ->
+      is_boundary_line?(boundary_line, delimiter) ->
         # Regular delimiter - start new part
         case state do
           :preamble ->
@@ -856,21 +845,24 @@ defmodule Mailex.Parser do
   defp lwsp_only?(""), do: true
   defp lwsp_only?(str), do: Regex.match?(~r/^[ \t]*$/, str)
 
-  # Join accumulated lines back into part body content
-  defp finalize_part(lines) do
-    lines
-    |> Enum.reverse()
-    |> Enum.join("\r\n")
+  # The newline preceding a delimiter belongs to that delimiter (RFC 2046 §5.1.1).
+  defp finalize_part(lines, before_boundary? \\ true) do
+    content = lines |> Enum.reverse() |> IO.iodata_to_binary()
+    if before_boundary?, do: strip_line_ending(content), else: content
+  end
+
+  defp strip_line_ending(content) do
+    cond do
+      String.ends_with?(content, "\r\n") -> binary_part(content, 0, byte_size(content) - 2)
+      String.ends_with?(content, "\n") -> binary_part(content, 0, byte_size(content) - 1)
+      true -> content
+    end
   end
 
   # Parse a single part
   defp parse_part(part_content, default_type) do
-    case parse(part_content) do
+    case parse(part_content, default_type) do
       {:ok, parsed} ->
-        # Apply default type if no Content-Type was specified
-        parsed = apply_default_type(parsed, default_type)
-        # Extract filename from Content-Disposition if present
-        parsed = extract_filename(parsed)
         parsed
 
       {:error, _} ->
@@ -1200,14 +1192,11 @@ defmodule Mailex.Parser do
   def decode_rfc2047(nil), do: nil
 
   def decode_rfc2047(str) do
-    # First, collapse whitespace between adjacent encoded-words
-    # RFC 2047 §6.2: Any 'linear-white-space' between 'encoded-word's is ignored
-    # Adjacent encoded-words: ?= followed by whitespace followed by =?
-    str = Regex.replace(~r/\?=[ \t\r\n]+\=\?/, str, "?==?")
-
     # Pattern for RFC 2047 encoded words
     # charset can include language tag like US-ASCII*EN (RFC 2231)
-    pattern = ~r/=\?([^?*]+)(?:\*[^?]*)?\?([BbQq])\?([^?]*)\?=/
+    # RFC 2047 §6.2: Ignore whitespace only between complete encoded-words.
+    pattern =
+      ~r/=\?([^?*]+)(?:\*[^?]*)?\?([BbQq])\?([^?]*)\?=(?:[ \t\r\n]+(?==\?[^?*]+(?:\*[^?]*)?\?[BbQq]\?[^?]*\?=))?/
 
     decoded =
       Regex.replace(pattern, str, fn _, charset, encoding, encoded_text ->

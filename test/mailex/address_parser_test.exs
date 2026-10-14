@@ -34,6 +34,16 @@ defmodule Mailex.AddressParserTest do
       assert result.domain == "example.com"
     end
 
+    test "preserves at signs inside quoted local-parts and domain literals" do
+      assert AddressParser.parse_addr_spec(~s("a@b"@[c@d])) ==
+               {:ok, %{local_part: "a@b", domain: "[c@d]"}}
+    end
+
+    test "addr-spec parsing rejects display names and angle addresses" do
+      assert {:error, _} = AddressParser.parse_addr_spec("Alice <a@example.org>")
+      assert {:error, _} = AddressParser.parse_addr_spec("<a@example.org>")
+    end
+
     test "parses domain-literal" do
       assert {:ok, result} = AddressParser.parse_addr_spec("user@[127.0.0.1]")
       assert result.local_part == "user"
@@ -298,6 +308,16 @@ defmodule Mailex.AddressParserTest do
       assert {:ok, result} = AddressParser.parse_group("チーム: member@example.com;")
       assert result.type == :group
       assert result.name == "チーム"
+    end
+
+    test "UTF-8 is accepted in quoted strings, comments, and domain literals" do
+      for input <- [~s("é"@[例え]), "(界(🙂)) é@[例え]", ~s("\\é"@[例え])] do
+        assert AddressParser.parse_addr_spec(input) ==
+                 {:ok, %{local_part: "é", domain: "[例え]"}}
+      end
+
+      assert AddressParser.parse_mailbox(~s("界 \\"🙂\\"" <"é"@[例え]>)) ==
+               {:ok, %{type: :mailbox, name: "界 \"🙂\"", address: "é@[例え]"}}
     end
   end
 end

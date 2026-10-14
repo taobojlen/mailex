@@ -259,5 +259,28 @@ defmodule Mailex.DateTimeParserTest do
       assert utc_dt.second == 6
       assert utc_dt.time_zone == "Etc/UTC"
     end
+
+    test "UTC conversion carries the date across offset boundaries" do
+      for {input, expected} <- [
+            {"01 Jan 2024 00:00:07 +0001", ~U[2023-12-31 23:59:07Z]},
+            {"01 Mar 2024 00:15:00 +0530", ~U[2024-02-29 18:45:00Z]},
+            {"01 Jan 2024 01:00:00 +0100", ~U[2024-01-01 00:00:00Z]},
+            {"31 Dec 2023 23:45:00 -0030", ~U[2024-01-01 00:15:00Z]}
+          ] do
+        assert {:ok, parsed} = DateTimeParser.parse(input)
+        assert DateTimeParser.to_utc_datetime(parsed) == {:ok, expected}
+      end
+    end
+
+    test "conversion returns errors for invalid dates and unrepresentable leap seconds" do
+      for {input, reason} <- [
+            {"31 Feb 2024 12:00:00 +0100", :invalid_date},
+            {"30 Jun 2024 23:59:60 +0000", :invalid_time}
+          ] do
+        assert {:ok, parsed} = DateTimeParser.parse(input)
+        assert DateTimeParser.to_datetime(parsed) == {:error, reason}
+        assert DateTimeParser.to_utc_datetime(parsed) == {:error, reason}
+      end
+    end
   end
 end
