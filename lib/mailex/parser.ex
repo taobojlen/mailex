@@ -755,7 +755,13 @@ defmodule Mailex.Parser do
 
   # Preserve line terminators so binary parts retain their original octets.
   defp split_lines_for_multipart(body) do
-    String.split(body, ~r/(?<=\n)/)
+    {lines, offset} =
+      Enum.map_reduce(:binary.matches(body, "\n"), 0, fn {position, 1}, offset ->
+        next_offset = position + 1
+        {binary_part(body, offset, next_offset - offset), next_offset}
+      end)
+
+    lines ++ [binary_part(body, offset, byte_size(body) - offset)]
   end
 
   # Recursive state machine for parsing multipart lines
@@ -769,7 +775,7 @@ defmodule Mailex.Parser do
   end
 
   defp parse_multipart_lines([line | rest], delimiter, close, state, current_lines, parts) do
-    boundary_line = Regex.replace(~r/\r?\n\z/, line, "")
+    boundary_line = strip_line_ending(line)
 
     cond do
       is_close_boundary_line?(boundary_line, close) ->
@@ -842,7 +848,15 @@ defmodule Mailex.Parser do
   # The newline preceding a delimiter belongs to that delimiter (RFC 2046 §5.1.1).
   defp finalize_part(lines, before_boundary? \\ true) do
     content = lines |> Enum.reverse() |> IO.iodata_to_binary()
-    if before_boundary?, do: Regex.replace(~r/\r?\n\z/, content, ""), else: content
+    if before_boundary?, do: strip_line_ending(content), else: content
+  end
+
+  defp strip_line_ending(content) do
+    cond do
+      String.ends_with?(content, "\r\n") -> binary_part(content, 0, byte_size(content) - 2)
+      String.ends_with?(content, "\n") -> binary_part(content, 0, byte_size(content) - 1)
+      true -> content
+    end
   end
 
   # Parse a single part

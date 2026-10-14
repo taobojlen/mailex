@@ -113,9 +113,9 @@ charset and unknown charsets must preserve the transfer-decoded bytes. Mapping
 `cp1258` to CP1252 deliberately makes the charset test fail with seed 577215;
 that mutation is removed.
 
-`PROPERTY_RUNS=1000 mix test --cover --seed 577215` passes with **94.03%**
+`PROPERTY_RUNS=1000 mix test --cover --seed 577215` passes with **94.12%**
 coverage on both toolchains. `mix test --cover --seed 424242 --exclude discovery`
-passes with **90.45%** coverage, so meeting Mix's default 90% threshold does not
+passes with **90.59%** coverage, so meeting Mix's default 90% threshold does not
 depend on generated cases. No threshold or coverage exclusions are changed.
 Compilation, formatting, and non-coverage test commands pass.
 
@@ -125,3 +125,52 @@ branches are not reached. The tests respect intentional trailing-text trimming
 and do not assert strict rejection of every malformed email or inconsistent
 weekday. Passing random runs do not establish exhaustive RFC conformance or
 absence of security issues.
+
+## Local performance validation
+
+CodSpeed CLI 5.2.1 and exec-harness 1.3.0 run the eight existing workloads
+locally without uploading results. The orb uses Elixir 1.19.5 / OTP 28.4 on two
+CPUs. Native profiling and CPU isolation are disabled; BEAM eprof provides
+separate diagnostic profiles.
+
+```sh
+MIX_ENV=prod mise exec -- mix compile --warnings-as-errors
+PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH" \
+  MIX_ENV=prod CODSPEED_ISOLATION=false CODSPEED_PROFILER_ENABLED=false \
+  CODSPEED_PERF_ENABLED=false \
+  mise exec -- codspeed run --mode walltime --skip-upload --skip-setup
+```
+
+Both checkouts use the same runtime, dependency versions, fixtures, script
+iteration counts, and `codspeed.yml`. Each has its own production build.
+The reference is `main` at [`b9787ab`](https://github.com/taobojlen/mailex/commit/b9787ab94be4553e9fb649bf09a4be28ccf3a093).
+Three serial baseline/branch pairs yield these medians of block medians.
+Times include BEAM startup; a negative change means faster execution.
+
+| Workload | Main, ms | Branch, ms | Change |
+| --- | ---: | ---: | ---: |
+| Plain text | 802.9 | 737.6 | −8.1% |
+| Nested multipart | 882.1 | 754.4 | −14.5% |
+| Attachments | 768.5 | 674.1 | −12.3% |
+| Large message | 830.1 | 636.3 | −23.3% |
+| Encoded headers | 640.1 | 653.7 | +2.1% |
+| Conformance corpus | 858.5 | 790.5 | −7.9% |
+| Addresses | 709.2 | 653.4 | −7.9% |
+| Dates | 545.1 | 521.1 | −4.4% |
+
+The encoded-header signal does not reproduce in longer, order-balanced blocks.
+Four 30-second blocks in baseline → branch → branch → baseline order measure
+646.9 ms versus 632.6 ms (−2.2%). Fifteen alternating warm-parser pairs using
+the same five fixtures and 550 iterations measure 219.4 ms versus 211.9 ms
+(−3.4%); every pair favors the branch and all checksums match. Warm-parser
+measurements exclude startup and are not CodSpeed scores.
+
+The multipart parser uses byte offsets to retain actual line terminators.
+Delimiter handling removes exactly one LF or CRLF; EOF retains payload bytes.
+Public results match the [reference parser](https://github.com/taobojlen/mailex/commit/b1d8a3f7fc23d024a591ece50d63b8e9d0eb35a1) on 225 message fixtures and 2,000
+generated binary multipart controls. A deliberately retained CR at a CRLF
+boundary changes the result and is detected by the equivalence comparison.
+
+These measurements establish no reproducible regression in the eight workloads
+on this orb. They do not guarantee performance for every input, runtime, host,
+or CI runner. Shared-host walltime noise and process startup limit precision.
