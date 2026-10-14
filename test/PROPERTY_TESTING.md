@@ -3,12 +3,12 @@
 The `property-discovery` branch contains StreamData generators, independent
 models, serializers, and the integrated fixes. Each fix branch starts at `main`
 and contains only its deterministic regression and production change. The fix
-branches do not require StreamData. All branches are local to this orb.
+branches do not require StreamData. The independent fix branches are local to
+the investigation orb.
 
-**Private review required:** this investigation includes exception paths that
-may matter to applications parsing untrusted messages. No application-level
-security impact is established. Do not publish the discovery branch or the
-`private/*` branches without disclosure clearance.
+The exception-handling regressions cover applications parsing untrusted messages.
+They demonstrate parser and conversion failures, not application-level security
+impact or exploitability.
 
 The approach follows [Property Testing with Agent Swarms](https://recursion.wtf/posts/agents-and-property-tests/)
 and [proptest-praxis](https://github.com/inanna-malick/agent-skills/blob/main/skills/proptest-praxis/SKILL.md).
@@ -82,10 +82,10 @@ with warnings as errors, using seed 424242.
 | `private/extended-parameters` | Invalid percent escapes raise instead of using the parser's tolerant decoding behavior | 740 pass |
 | `private/date-conversion-errors` | Unrepresentable dates and leap seconds raise instead of returning conversion errors | 740 pass |
 
-The private branch prefix is a disclosure precaution, not a claim of an
-exploitable vulnerability. Nested Unicode comments are a demonstrated public
-`Mailex.parse/1` exception path; a single non-nested Unicode comment is not the
-same failure. Date errors require a caller to invoke a conversion function.
+The `private/` branch prefix identifies the exception-handling fixes, not a claim
+of an exploitable vulnerability. Nested Unicode comments are a demonstrated
+public `Mailex.parse/1` exception path; a single non-nested Unicode comment is not
+the same failure. Date errors require a caller to invoke a conversion function.
 
 ## Validation and calibration
 
